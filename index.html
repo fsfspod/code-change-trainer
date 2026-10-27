@@ -1,0 +1,1210 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body><title>Code Change Trainer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style id="cct-style">
+/* Layout: the Dispatch Trainer CAD console. Scenario strip across the top; ECT + command line on the left; call queue on the right. One deliberate light look. */
+:root{
+  --cream:#F2EAD3; --panel:#FAF5E6; --band:#E6DAB8; --edge:#CDBE96;
+  --ink:#24201A; --muted:#6B624D;
+  --line:#0F0F0D; --rowtxt:#ECE5D0; --rowdim:#8E8774;
+  --green:#5BE06E; --yellow:#F4D31C; --blue:#1F5DD8; --orange:#F18B26;
+  --alert:#FF5B4F; --alert-bg:#B3261E; --ok:#2E7D3A; --ok-bg:#E3F1DF; --bad-bg:#F8E0DC;
+  --on-dark:#FFFFFF; --on-light:#0B0B0A; --field:#FFFFFF; --field-ink:#000000;
+  --f-label:"Nunito","Trebuchet MS",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r-lg:18px; --r-md:12px; --r-sm:8px; --r-pill:999px;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--cream);color:var(--ink);font-family:var(--f-label);font-size:15px;line-height:1.35}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--band)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--band);border-bottom:2px solid var(--edge);display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;padding-block:8px}
+.brand{font-weight:800;letter-spacing:.04em;font-size:17px;white-space:nowrap}
+.brand small{font-weight:700;color:var(--muted);margin-left:8px;font-size:14px}
+.spacer{flex:1}
+.clock{font-family:var(--f-data);font-variant-numeric:tabular-nums;background:var(--line);color:var(--green);font-size:15px;font-weight:500;padding:3px 12px;letter-spacing:.06em;border-radius:var(--r-pill)}
+.modes{display:flex;gap:4px;background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-pill);padding:3px}
+.modes button{border:0;background:transparent;padding:3px 12px;border-radius:var(--r-pill);font-weight:800;font-size:13px;color:var(--muted)}
+.modes button[aria-pressed="true"]{background:var(--ink);color:var(--cream)}
+.stats{display:flex;gap:6px;font-family:var(--f-data);font-size:12px;font-variant-numeric:tabular-nums}
+.stat{border:1.5px solid var(--ink);border-radius:var(--r-pill);padding:2px 10px;white-space:nowrap}
+.stat b{font-weight:600}
+.btn{background:var(--panel);border:2px solid var(--ink);padding:5px 16px;font-weight:700;border-radius:var(--r-pill);white-space:nowrap}
+.btn:hover{background:var(--band)}
+.btn.primary{background:var(--ink);color:var(--cream)}
+.btn.primary:hover{background:var(--line)}
+.btn.go{background:var(--ok);border-color:var(--ok);color:var(--on-dark)}
+.btn.small{padding:2px 12px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:default}
+.linkbtn{background:none;border:0;padding:0;font-weight:700;font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+
+/* landing */
+.landing{max-width:980px;margin:0 auto;padding-block:28px 48px;display:grid;gap:22px}
+.landing h1{font-size:clamp(30px,5vw,44px);font-weight:800;line-height:1.08;margin:0;text-wrap:balance}
+.lede{max-width:62ch;color:var(--muted);font-size:17px;margin:8px 0 0}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:16px}
+.choice{background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-lg);padding:20px;display:grid;gap:10px;align-content:start;text-align:left}
+.choice:hover{border-color:var(--ink)}
+.choice h2{margin:0;font-size:22px;font-weight:800}
+.choice p{margin:0;color:var(--muted)}
+.choice .meta{font-family:var(--f-data);font-size:12px;color:var(--ink)}
+.how{display:grid;gap:8px;max-width:72ch}
+.how h3{margin:0;font-size:16px;font-weight:800}
+.how ul{margin:0;padding-left:20px;display:grid;gap:4px}
+code,.mono{font-family:var(--f-data);font-size:.92em}
+code{background:var(--line);color:var(--yellow);padding:1px 7px;border-radius:6px;white-space:nowrap}
+
+/* game layout */
+.game{display:grid;gap:12px;padding-block:12px 24px;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);grid-template-areas:"scen scen" "cheat cheat" "left queue";align-items:start}
+.a-scen{grid-area:scen}.a-cheat{grid-area:cheat}.a-left{grid-area:left;display:grid;gap:12px;min-width:0}.a-queue{grid-area:queue}
+@media (max-width:900px){.game{grid-template-columns:minmax(0,1fr);grid-template-areas:"scen" "cheat" "left" "queue"}}
+.scen-cheat{display:flex;align-items:center}
+.scen-cheat .btn{height:100%;min-height:52px;padding-inline:18px;border-radius:var(--r-lg)}
+.scen-cheat .btn[aria-expanded="true"]{background:var(--yellow);border-color:var(--ink);color:var(--on-light)}
+@media (max-width:620px){.scen-cheat{flex:1 1 100%}.scen-cheat .btn{width:100%}}
+.cheat-scroll{max-height:min(52vh,520px);overflow:auto;padding:10px 14px 14px;display:grid;gap:14px}
+.cheat-sec{display:grid;gap:6px}
+.cheat-sec h3{margin:0;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.cheat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:4px 16px}
+.ch{display:grid;grid-template-columns:7.8ch minmax(0,1fr);gap:2px 10px;padding:4px 0;border-bottom:1px solid var(--edge);font-size:13.5px;align-items:baseline}
+.ch b{font-family:var(--f-data);font-weight:600}
+.ch small{grid-column:2;font-family:var(--f-data);font-size:11.5px;color:var(--muted)}
+
+.pane{background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-lg);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.pane-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--band);padding:8px 14px}
+.pane-h h2{margin:0;font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.pane-h .count{font-family:var(--f-data);font-size:12px;color:var(--muted)}
+.pane.off{opacity:.55}
+#ectPane{overflow:visible;position:relative;z-index:3}
+#ectPane > .pane-h{border-radius:calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0}
+
+/* scenario strip */
+.scen{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
+.scen-box{flex:1 1 420px;min-width:0;background:var(--line);color:var(--rowtxt);border-radius:var(--r-lg);padding:12px 16px;display:grid;gap:6px;border:2px solid var(--line)}
+.scen-box .kind{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:var(--f-data);font-size:12px;letter-spacing:.06em;color:var(--rowdim)}
+.pill{font-family:var(--f-label);font-weight:800;font-size:11px;letter-spacing:.08em;padding:1px 9px;border-radius:var(--r-pill);text-transform:uppercase}
+.pill.call{background:var(--yellow);color:var(--on-light)}
+.pill.radio{background:var(--blue);color:var(--on-dark)}
+.scen-text{font-size:19px;font-weight:700;line-height:1.35;text-wrap:pretty}
+.scen-text .q{font-family:var(--f-data);font-weight:500;font-size:17px;color:var(--yellow)}
+.scen-task{font-size:13px;color:var(--rowdim)}
+.scen-box.solved{border-color:var(--green)}
+.scen-box.solved .scen-task{color:var(--green);font-weight:700}
+.scen-act{display:flex;align-items:stretch;gap:8px}
+.scen-act .btn.end{font-size:14px;padding-inline:16px}
+.scen-act .btn{height:100%;min-height:52px;padding-inline:22px;font-size:16px;border-radius:var(--r-lg)}
+@media (max-width:620px){.scen-act{flex:1 1 100%}.scen-act .btn{flex:1 1 0}}
+
+/* report card */
+.report{max-width:1040px;margin:0 auto;padding-block:24px 48px;display:grid;gap:20px}
+.report h1{font-size:clamp(28px,4.5vw,40px);font-weight:800;line-height:1.1;margin:4px 0 0;text-wrap:balance}
+.report .sub{color:var(--muted);margin:6px 0 0;font-family:var(--f-data);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.tile{background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-lg);padding:12px 14px;display:grid;gap:2px}
+.tile .n{font-family:var(--f-data);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .k{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tile.lead{background:var(--line);border-color:var(--line);color:var(--rowtxt)}
+.tile.lead .k{color:var(--rowdim)}
+.tile.lead .n{color:var(--green)}
+.rev-wrap{overflow-x:auto;background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-lg)}
+.rev{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+.rev th{text-align:left;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--band);padding:8px 12px}
+.rev td{padding:9px 12px;border-top:1px solid var(--edge);vertical-align:top}
+.rev td.ans{font-family:var(--f-data);font-size:13px;white-space:nowrap}
+.rev td.ans small{display:block;color:var(--muted);font-family:var(--f-label);font-weight:700;font-size:12px;white-space:normal}
+.rev td.gave{font-family:var(--f-data);font-size:13px;color:var(--alert-bg)}
+.res-pill{display:inline-block;font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:1px 9px;border-radius:var(--r-pill);white-space:nowrap}
+.res-pill.retry{background:var(--orange);color:var(--on-light)}
+.res-pill.missed{background:var(--alert-bg);color:var(--on-dark)}
+.res-pill.skipped{background:var(--band);color:var(--ink)}
+.clean{background:var(--ok-bg);border:2px solid var(--ok);color:var(--ok);border-radius:var(--r-lg);padding:14px 16px;font-weight:700}
+.report .acts{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ECT */
+.ect-body{padding:12px 14px;display:grid;gap:10px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px 12px}
+.f{display:grid;gap:3px;min-width:0}
+.f .lbl{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.f .ro{font-family:var(--f-data);font-size:13.5px;background:var(--band);border:2px solid var(--edge);border-radius:var(--r-sm);padding:5px 10px;min-height:1.35em;overflow-wrap:anywhere;color:var(--ink)}
+.f.full{grid-column:1 / -1}
+.narr{background:var(--line);color:var(--rowtxt);font-family:var(--f-data);font-size:13px;padding:8px 12px;border-radius:var(--r-md);min-height:2.6em;overflow-wrap:anywhere}
+.ct-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.combo{position:relative;flex:1 1 260px;min-width:0}
+.inp{font-family:var(--f-data);font-size:15px;width:100%;box-sizing:border-box;border:2px solid var(--ink);background:var(--cream);padding:7px 12px;border-radius:var(--r-sm)}
+.inp:disabled{border-color:var(--edge);background:var(--band)}
+.inp.good{border-color:var(--ok);background:var(--ok-bg)}
+.inp.bad{border-color:var(--alert-bg);background:var(--bad-bg);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.lb{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:4;background:var(--panel);border:2px solid var(--ink);border-radius:var(--r-sm);max-height:260px;overflow:auto;margin:0;padding:4px;list-style:none;box-shadow:0 10px 24px rgba(0,0,0,.18)}
+.lb li{font-family:var(--f-data);font-size:13.5px;padding:5px 8px;border-radius:6px;cursor:pointer;display:flex;gap:10px}
+.lb li b{font-weight:600;min-width:7.5ch}
+.lb li[aria-selected="true"],.lb li:hover{background:var(--line);color:var(--rowtxt)}
+.lb .none{color:var(--muted);cursor:default}
+.lb .none:hover{background:none;color:var(--muted)}
+.fb{font-size:14px;font-weight:700;border-radius:var(--r-md);padding:7px 12px;border:2px solid transparent}
+.fb.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.fb.err{background:var(--bad-bg);border-color:var(--alert-bg);color:var(--alert-bg)}
+.fb.info{background:var(--cream);border-color:var(--edge);color:var(--ink)}
+.fb .mono{font-weight:600}
+.idle{padding:14px;color:var(--muted);font-size:14px}
+
+/* command line */
+.cmd-body{padding:12px 14px;display:grid;gap:8px}
+.cmd-row{display:flex;gap:8px;flex-wrap:wrap}
+.cmd-row .inp{flex:1 1 240px;min-width:0;background:var(--field);color:var(--field-ink);border-color:var(--ink);text-transform:uppercase;letter-spacing:.04em}
+.cmd-row .inp::placeholder{color:var(--muted);text-transform:none;letter-spacing:0}
+.cmd-row .inp:disabled{background:var(--band);border-color:var(--edge);color:var(--muted)}
+.cmd-row .inp.good{border-color:var(--ok);background:var(--field)}
+.cmd-row .inp.bad{border-color:var(--alert-bg);background:var(--field)}
+.syntax{font-size:13px;color:var(--muted);margin:0}
+
+/* queue */
+.qhead,.qrow{display:grid;grid-template-columns:3.4em minmax(0,1.5fr) 7.6em minmax(0,1.3fr);gap:10px;align-items:start}
+.qhead{padding:6px 14px;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--edge)}
+.qlist{display:grid;gap:6px;padding:8px}
+.qrow{background:var(--line);color:var(--rowtxt);border-radius:var(--r-md);padding:8px 10px;font-family:var(--f-data);font-size:13px;font-variant-numeric:tabular-nums}
+.qrow .id{color:var(--yellow);font-weight:600}
+.qrow .pc{font-weight:600}
+.qrow .pc small{display:block;font-weight:400;color:var(--rowdim);font-size:11.5px;font-family:var(--f-label);font-weight:700}
+.qrow .addr{overflow-wrap:anywhere}
+.qrow.target{box-shadow:0 0 0 3px var(--cream),0 0 0 5px var(--blue)}
+.qrow.fresh{animation:fresh 1.2s ease-out}
+@keyframes fresh{from{background:var(--ok)}to{background:var(--line)}}
+.units{display:flex;flex-wrap:wrap;gap:4px}
+.u{display:inline-block;font-size:12px;font-weight:600;padding:0 8px;border-radius:var(--r-pill);line-height:1.6;box-shadow:inset 0 0 0 1.5px currentColor}
+.u.fire{color:var(--orange)}
+.u.law{color:var(--law)}
+.u.add{background:var(--green);color:var(--on-light);box-shadow:none}
+.qempty{padding:16px 14px;color:var(--muted);font-size:14px}
+@media (max-width:520px){
+  .qhead{display:none}
+  .qrow{grid-template-columns:3.4em minmax(0,1fr);}
+  .qrow .addr{grid-column:2}
+  .qrow .pc{grid-column:2;grid-row:1}
+  .qrow .units{grid-column:1 / -1}
+  .qrow .id{grid-row:1}
+}
+.qrow .units{min-width:0}
+
+.foot{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.inp.bad,.qrow.fresh{animation:none}}
+
+/* flashcards */
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-pill);padding:3px}
+.seg button{border:0;background:transparent;padding:4px 12px;border-radius:var(--r-pill);font-weight:800;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--cream)}
+.seg button:disabled{cursor:default;opacity:.5}
+.seg.small{padding:2px}
+.seg.small button{padding:2px 10px;font-size:12px}
+.pane-h .spacer{flex:1}
+.flash{max-width:780px;margin:0 auto;padding-block:18px 40px;display:grid;gap:14px}
+.fctl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.fprog{display:grid;gap:6px}
+.fprog-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.fprog-top b{color:var(--ink);font-family:var(--f-data);font-weight:600}
+.fkey{display:flex;gap:10px;align-items:center;font-size:12px;font-weight:700}
+.fkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:-6px}
+.fbar{display:flex;height:10px;border-radius:var(--r-pill);overflow:hidden;background:var(--band);gap:2px}
+.b1{background:var(--edge)}.b2{background:var(--yellow)}.b3{background:var(--orange)}.b4{background:var(--blue)}.b5{background:var(--ok)}
+.fstage{display:grid;gap:12px}
+.fcard{background:var(--line);color:var(--rowtxt);border-radius:var(--r-lg);border:3px solid var(--line);padding:26px 22px;min-height:230px;display:grid;align-content:center;justify-items:center;gap:12px;text-align:center}
+.fcard.flipped{border-color:var(--yellow)}
+.fcard.right{border-color:var(--green)}
+.fcard.wrong{border-color:var(--alert)}
+.ftag{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--rowdim)}
+.fmain{font-size:clamp(24px,5vw,36px);font-weight:800;line-height:1.15;text-wrap:balance}
+.fmain.code{font-family:var(--f-data);font-weight:600;letter-spacing:.06em;color:var(--yellow)}
+.fback{display:grid;gap:6px;justify-items:center;border-top:1px dashed var(--rowdim);padding-top:14px;width:min(100%,520px)}
+.fback .fmain.code{color:var(--green)}
+.fhint{font-size:14px;color:var(--rowdim)}
+.fsub{font-family:var(--f-data);font-size:13px;color:var(--rowdim)}
+.flist{display:grid;gap:4px;width:100%;text-align:left}
+.flist div{display:grid;grid-template-columns:8.5ch minmax(0,1fr);gap:10px;font-size:14px;align-items:baseline}
+.flist b{font-family:var(--f-data);font-weight:600;color:var(--green)}
+.factions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn.big{font-size:16px;padding:10px 26px;border-radius:var(--r-lg);min-width:9em}
+.btn.miss{border-color:var(--alert-bg);color:var(--alert-bg)}
+.btn.miss:hover{background:var(--bad-bg)}
+.btn.got{background:var(--ok);border-color:var(--ok);color:var(--on-dark)}
+.btn.got:hover{background:var(--ok);filter:brightness(1.1)}
+.fkeys{margin:0;text-align:center;font-size:12px;color:var(--muted)}
+.ftype{display:flex;gap:8px;flex-wrap:wrap}
+.ftype .inp{flex:1 1 240px;min-width:0;background:var(--field);color:var(--field-ink);text-transform:uppercase}
+.ftype .inp::placeholder{text-transform:none;color:var(--muted)}
+.flash .foot{justify-content:center}
+@media (max-width:620px){.btn.big{flex:1 1 0;min-width:0}}
+
+/* color profiles: each one only redefines tokens */
+:root{--law:#7FB2FF}
+:root[data-profile="slate"]{--cream:#E3E8ED; --panel:#F5F7F9; --band:#D2DAE2; --edge:#AAB7C4; --ink:#18212B; --muted:#526070; --line:#0E141B; --rowtxt:#E2E9F0; --rowdim:#7D8B99}
+:root[data-profile="sage"]{--cream:#E2E8DB; --panel:#F4F7F0; --band:#CDD8C1; --edge:#A6B696; --ink:#1C2418; --muted:#55634A; --line:#10160D; --rowtxt:#E4EBDD; --rowdim:#83907A}
+:root[data-profile="pink"]{--cream:#F6E3EA; --panel:#FCF3F6; --band:#EDCCD9; --edge:#D7A5B8; --ink:#2A1720; --muted:#764F5F; --line:#1A0D13; --rowtxt:#F6E4EB; --rowdim:#9C7887}
+:root[data-profile="paper"]{--cream:#FFFFFF; --panel:#FFFFFF; --band:#ECEDEF; --edge:#C9CCD1; --ink:#111111; --muted:#5A5E66; --line:#16181C; --rowtxt:#F1F2F4; --rowdim:#8B9099}
+:root[data-profile="night"]{--cream:#111317; --panel:#1A1D22; --band:#23272E; --edge:#363C46; --ink:#E7E9EC; --muted:#9AA3AE; --line:#08090B; --rowtxt:#E7E9EC; --rowdim:#7A8590;
+  --alert-bg:#E5534B; --ok:#3FA858; --ok-bg:#16301D; --bad-bg:#3A1816; --field:#0C0E11; --field-ink:#F2F4F6; --on-light:#0B0B0A; color-scheme:dark}
+:root[data-profile="lowlight"]{--cream:#0B0606; --panel:#140A0A; --band:#1E0E0E; --edge:#3B1D1D; --ink:#F0B4AC; --muted:#B06F68; --line:#050202; --rowtxt:#F0B4AC; --rowdim:#94544E;
+  --green:#FF8A70; --yellow:#FFB08A; --blue:#B23A30; --orange:#E0705A; --law:#F0B4AC; --alert:#FF5B4F; --alert-bg:#E0473C; --ok:#C2493C; --ok-bg:#2A0F0D; --bad-bg:#3A0F0D;
+  --field:#070303; --field-ink:#F6C4BC; --on-dark:#FFE6E1; --on-light:#140404; color-scheme:dark}
+.prof{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.prof select{font-family:var(--f-label);font-size:13px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--ink);background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-pill);padding:3px 10px}
+
+/* admin */
+.admin{max-width:1100px;margin:0 auto;padding-block:20px 44px;display:grid;gap:14px}
+.ad-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.ad-head h1{margin:0;font-size:clamp(26px,4vw,36px);font-weight:800}
+.ad-sub{margin:4px 0 0;color:var(--muted);max-width:60ch}
+.ad-acts{display:flex;gap:8px;flex-wrap:wrap}
+.ad-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.ad-q{flex:1 1 220px;min-width:0;width:auto}
+.ad-list{display:grid;gap:6px}
+.ad-row{display:grid;grid-template-columns:9ch minmax(0,1.4fr) minmax(0,1fr) auto;gap:4px 14px;align-items:baseline;text-align:left;background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-md);padding:9px 14px;font-size:14px;color:var(--ink)}
+.ad-row:hover{border-color:var(--ink)}
+.ad-row b{font-weight:600}
+.ad-row .old{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.ad-row .cnt{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.ad-row i{color:var(--muted)}
+.ad-row.has-err,.ad-table tr.has-err td{border-color:var(--alert-bg)}
+.err{grid-column:1 / -1;color:var(--alert-bg);font-size:13px;font-weight:700}
+@media (max-width:620px){.ad-row{grid-template-columns:9ch minmax(0,1fr)}.ad-row .old,.ad-row .cnt{grid-column:2}}
+.ad-edit{background:var(--panel);border:2px solid var(--ink);border-radius:var(--r-lg);padding:14px;display:grid;gap:12px}
+.ad-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px 14px}
+.ad-grid .inp{font-size:14px}
+.ad-hint{margin:-4px 0 0;font-size:12.5px;color:var(--muted);line-height:1.6}
+.ad-scen{display:grid;gap:8px;justify-items:start}
+.ad-srow{display:flex;gap:10px;align-items:flex-start;width:100%}
+.ad-srow textarea{flex:1;min-width:0;font-family:var(--f-label);font-size:14px;resize:vertical;line-height:1.4}
+.ad-eacts{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.linkbtn.danger{color:var(--alert-bg)}
+.ad-tablewrap{overflow-x:auto;background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-lg)}
+.ad-table{width:100%;border-collapse:collapse;min-width:560px}
+.ad-table th{text-align:left;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--band);padding:8px 12px}
+.ad-table td{padding:6px 12px;border-top:1px solid var(--edge);vertical-align:middle}
+.ad-table td:first-child{width:9em}
+.ad-table .inp{font-size:14px;padding:5px 10px}
+.ad-check{display:flex;gap:6px;align-items:center;font-size:14px}
+.ad-stash{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ad-lock{max-width:380px;width:100%;margin:6vh auto 0;background:var(--panel);border:2px solid var(--edge);border-radius:var(--r-lg);padding:22px;display:grid;gap:14px}
+.ad-lock h1{margin:0;font-size:26px;font-weight:800}
+.ad-lock .inp{background:var(--field);color:var(--field-ink)}
+</style>
+
+<div id="app"></div>
+
+<script type="application/json" id="cct-data">{"calls":[{"code":"MEALAN","name":"Medical Alarm","old":"EMSR","grp":"Medical, EMS and aircraft","s":["Alarm company reports a pendant activation for an 84-year-old resident; no voice contact.","Monitoring service says a fall-detection alarm went off and the resident doesn't answer callbacks."],"units":["ME","A"]},{"code":"MEREQN","name":"Medical Field Request from LE","old":"EMSR","grp":"Medical, EMS and aircraft","s":["Deputy on a traffic stop asks for medical to check a driver who says he has chest pain.","Deputy with a man in custody asks for medical to look at a cut on his hand."],"units":["ME","LAW"]},{"code":"STAGEN","name":"Stage","old":"EMSR","grp":"Medical, EMS and aircraft","s":["Deputies are heading to a fight with an injury reported; medical is asked to wait nearby until the scene is safe.","Caller says her neighbor overdosed and has a gun in the house; EMS must hold back until law clears it."],"units":["ME","A","LAW"]},{"code":"BLDRAN","name":"Blood Draw","old":"BLDRAR","grp":"Medical, EMS and aircraft","s":["Deputy has a DUI arrest at the jail and needs a blood draw.","Trooper asks for a blood draw for a driver who refused a breath test."],"units":["ME","LAW"]},{"code":"AMSKIN","name":"Ambulance: Ski Accident (Eldora)","old":"AMSKIR","grp":"Medical, EMS and aircraft","s":["Eldora ski patrol has a skier with a likely broken leg at the base lodge and needs an ambulance.","Ski patrol is bringing a snowboarder with a head injury down to the patrol room at Eldora."],"units":["A","ME"]},{"code":"AIACC1N","name":"Aircraft Accident: Motorized","old":"AIACCR","grp":"Medical, EMS and aircraft","s":["Witness saw a small plane go down in a field east of the airport; smoke is visible.","Caller reports a helicopter crashed into trees near a ridge."],"units":["EN","EN","ME","A","BC"]},{"code":"AIACC2N","name":"Aircraft Accident: Non-Motorized","old":"AIACCR","grp":"Medical, EMS and aircraft","s":["Hikers report a paraglider hit the hillside and is not moving.","A hang glider landed hard in a field; the pilot is awake but can't stand."],"units":["EN","ME","A"]},{"code":"AIACC3N","name":"Aircraft Problem Non-Crash","old":"AIACCR","grp":"Medical, EMS and aircraft","s":["Airport reports an inbound plane with landing gear trouble; it has not crashed.","A pilot reported engine trouble and is making an emergency landing at the airport."],"units":["EN","EN","BC"]},{"code":"FIALA1N","name":"Fire Alarm","old":"FIALCMR, FIALRSR","grp":"Alarms, odors and smoke","s":["Alarm company reports a general fire alarm at an office building; no callback contact.","Homeowner says their fire alarms are going off. No smoke or flames."],"units":["EN"]},{"code":"FIALA2N","name":"Fire Alarm Special Hazard","old":"FIALRSR","grp":"Alarms, odors and smoke","s":["Alarm company reports a fire alarm at a chemical storage warehouse.","Fire alarm going off at a lab building that stores hazardous materials."],"units":["EN","HM"]},{"code":"CAMONN","name":"Carbon Monoxide Alarm","old":"FIALRSR","grp":"Alarms, odors and smoke","s":["Caller says the CO detector in her basement is going off; no one feels sick.","Alarm company reports a carbon monoxide alarm at a home."],"units":["EN"]},{"code":"ODINN","name":"Odor Investigation","old":"FIODIR, FIODOR","grp":"Alarms, odors and smoke","s":["Caller smells gas near his meter outside but doesn't hear any hissing.","Office staff smell burning plastic but can't see any smoke."],"units":["EN"]},{"code":"SMVISN","name":"Smoke Visible Outside","old":"FISMOR","grp":"Alarms, odors and smoke","s":["Driver sees a column of smoke behind a hill but can't tell what's burning.","Caller sees smoke in the distance toward the foothills."],"units":["BR","EN"]},{"code":"STFIR1N","name":"Unconfirmed Residential Structure Fire","old":"FISTRR","grp":"Structure, outside and vehicle fires","s":["Caller smells smoke inside her house but can't find where it's coming from.","Neighbor thinks he sees smoke near the roof of the house next door but isn't sure."],"units":["EN","BC"]},{"code":"STFIR2N","name":"Unconfirmed Commercial Structure Fire","old":"FISTRR","grp":"Structure, outside and vehicle fires","s":["Store employee smells smoke in the back storeroom; no flames seen.","Passerby thinks smoke is coming from a restaurant roof, but it may be from cooking."],"units":["EN","TO","BC"]},{"code":"STFIR3N","name":"Appliance Fire","old":"FISTRR","grp":"Structure, outside and vehicle fires","s":["Caller says her dryer caught fire; she shut the door and it's smoking but no flames.","A microwave caught fire in a kitchen; the flames are still inside it."],"units":["EN"]},{"code":"STFIR4N","name":"Confirmed Residential Structure Fire","old":"FISTRR, FTBR","grp":"Structure, outside and vehicle fires","s":["Caller sees flames coming out the windows of the house next door.","Homeowner says the attached garage is on fire and it's spreading into the house."],"units":["EN","EN","TR","ME","BC"]},{"code":"STFIR5N","name":"Confirmed Commercial Structure Fire","old":"FISTRR, FTBR","grp":"Structure, outside and vehicle fires","s":["Flames are showing through the roof of a store in a strip mall.","Warehouse workers got out; fire is burning in the loading dock area."],"units":["EN","EN","TO","ME","BC"]},{"code":"OUFIRN","name":"Outside Fire","old":"FICAMR, FINONR","grp":"Structure, outside and vehicle fires","s":["Caller sees a campfire left burning with no one around at a campsite.","A brush pile is burning in a vacant lot in town."],"units":["EN"]},{"code":"DUFIRN","name":"Dumpster Fire","old":"FINONR","grp":"Structure, outside and vehicle fires","s":["The dumpster behind a restaurant is on fire.","A trash bin in an alley has flames coming out of it."],"units":["EN"]},{"code":"COBURN","name":"Controlled Burn","old":"FICONR","grp":"Structure, outside and vehicle fires","s":["A rancher calls to say he'll be burning his ditches this afternoon.","Caller sees a large burn pile, but people are standing by with hoses and say it's permitted."],"units":["BR"]},{"code":"WIFIRN","name":"Wildland Fire","old":"FICONXR, FIWILR","grp":"Structure, outside and vehicle fires","s":["Hiker sees fire spreading through grass and trees on a hillside.","A ditch burn got away and is running uphill into the trees."],"units":["BR","WI","TE","BC"]},{"code":"VEFIR1N","name":"Vehicle Fire Gas","old":"FINONR","grp":"Structure, outside and vehicle fires","s":["A car pulled over on the highway shoulder has flames coming from the engine.","A pickup caught fire in a parking lot."],"units":["EN"]},{"code":"VEFIR2N","name":"Vehicle Fire Electric","old":"FINONR","grp":"Structure, outside and vehicle fires","s":["An electric car in a garage is smoking and making popping sounds from the battery.","An electric SUV caught fire after a crash and keeps flaring back up."],"units":["EN","TE"]},{"code":"VEFIR3N","name":"Vehicle Fire Commercial","old":"FINONR","grp":"Structure, outside and vehicle fires","s":["A semi-truck trailer is on fire on the highway.","A delivery box truck is smoking heavily from the cargo area."],"units":["EN","TE"]},{"code":"EXPLO1N","name":"Explosion","old":"FINONR","grp":"Structure, outside and vehicle fires","s":["Caller heard a loud explosion and sees debris in the street.","Neighbor reports a propane tank blew up in a backyard."],"units":["EN","TR","ME","BC"]},{"code":"EXPLO2N","name":"Explosion Transformer","old":"FINONR","grp":"Structure, outside and vehicle fires","s":["Caller heard a loud bang and saw sparks from a transformer on a pole; the power is out.","A ground transformer box blew up and is smoking."],"units":["EN"]},{"code":"FIASS1N","name":"Fire Assist: Lift Assist","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["Caller's 90-year-old father slid out of his chair; he isn't hurt but needs help getting up.","Home health aide needs help lifting a patient back into bed; no injuries."],"units":["EN"]},{"code":"FIASS2N","name":"Fire Assist: Police","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["Deputies need help forcing a door for a welfare check.","Officers ask fire for assistance."],"units":["EN","LAW"]},{"code":"FIASS3N","name":"Fire Assist: General","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["An elderly resident can't reach a smoke detector that keeps chirping.","Caller needs help resetting a fire alarm panel that won't stop beeping."],"units":["EN"]},{"code":"FIASS4N","name":"Fire Assist: Lockout","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["A mother locked her keys in the car with her baby inside on a warm day.","Caller is locked out of her house and left the stove on."],"units":["EN"]},{"code":"FIASS5N","name":"Fire Assist: Water Issue","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["Water is pouring through the ceiling from a broken pipe; caller can't find the shutoff.","The basement is flooding from a burst water heater."],"units":["EN"]},{"code":"ELHAZN","name":"Electrical Hazard","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["A power line is down across a driveway and sparking.","A utility box is sparking and smoking."],"units":["EN"]},{"code":"ELRESN","name":"Elevator Rescue","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["Three people are stuck in an elevator between floors at an office building.","An elevator stopped in an apartment building with an elderly woman inside."],"units":["TR"]},{"code":"RESCU4N","name":"Rescue: Large Animal","old":"FIASSR","grp":"Fire assists, hazards and threats","s":["A horse fell into an irrigation ditch and can't get out.","A cow is stuck in deep mud at the edge of a pond."],"units":["EN","TR"]},{"code":"BOTHRN","name":"Bomb Threat","old":"BOMBR","grp":"Fire assists, hazards and threats","s":["A school got a phone call saying there's a bomb in the building.","A bank employee found a note claiming there's a bomb inside."],"units":["BC","ME"]},{"code":"SUDEVN","name":"Suspicious Device","old":"SUDEVR","grp":"Fire assists, hazards and threats","s":["Caller found a pipe with wires taped to it next to a mailbox.","A backpack with wires sticking out was left at a bus stop."],"units":["EN","BC"]},{"code":"CRASH1N","name":"Crash","old":"INACCR, UNACCR","grp":"Crashes and trains","s":["Two cars collided at an intersection; one driver has neck pain.","A car slid off the road into a ditch; caller doesn't know if anyone is hurt."],"units":["EN","ME","A"]},{"code":"CRASH2N","name":"Crash: Major","old":"MAACCR","grp":"Crashes and trains","s":["Head-on crash on the highway; one person is trapped and not moving.","A bus rolled multiple times after a collision."],"units":["EN","TR","ME","A","BC"]},{"code":"CRASH3N","name":"Crash Structure Involved","old":"INACCR","grp":"Crashes and trains","s":["A car drove through the front window of a coffee shop with people inside.","A pickup crashed into the living room of a house."],"units":["EN","TR","ME","BC"]},{"code":"TRAIN1N","name":"Train Collision","old":"INACCR","grp":"Crashes and trains","s":["A train hit a car stuck on the tracks at a crossing.","A train struck a person walking near the tracks."],"units":["EN","ME","A","BC"]},{"code":"TRAIN2N","name":"Train Collision with Hazmat","old":"HAZMATR","grp":"Crashes and trains","s":["A freight train hit a truck at a crossing and a tank car is leaking.","Several cars of a freight train derailed; one with hazmat placards is spilling liquid."],"units":["EN","HM","ME","BC"]},{"code":"TRAIN3N","name":"Train Emergency","old":"FIASSR","grp":"Crashes and trains","s":["The engineer reports smoke from a locomotive; the train is stopped and there was no collision.","A stopped passenger train has a car filling with smoke from the brakes."],"units":["EN","BC"]},{"code":"HAMAT1N","name":"Hazmat Spill or Vapor Leak","old":"HAZMATR","grp":"Hazmat and mass casualty","s":["A delivery truck spilled about 50 gallons of diesel in a parking lot.","A pool supply store has a chlorine leak and employees smell fumes."],"units":["EN","HM"]},{"code":"HAMAT2N","name":"Hazmat Consult","old":"HAZCONR","grp":"Hazmat and mass casualty","s":["A deputy found unknown containers in a car and wants a hazmat specialist's advice.","A business found an old drum of unknown chemicals and wants guidance on what to do."],"units":["HM","LAW"]},{"code":"HAMAT3N","name":"Hazmat Full Team Response","old":"HAZFULR","grp":"Hazmat and mass casualty","s":["A fire unit requests a full team response."],"units":["HM","HM","EN","BC"]},{"code":"MACAS1N","name":"Mass Casualty Incident","old":"MCIR","grp":"Hazmat and mass casualty","s":["A bus crash has about 20 injured passengers and multiple reported fatalities.","A stage collapsed at an outdoor concert and many people are hurt."],"units":["EN","ME","ME","A","A","BC"]},{"code":"MACAS2N","name":"Mass Casualty Incident Hazmat","old":"HAZMATR","grp":"Hazmat and mass casualty","s":["Many factory workers are sick from fumes after a chemical leak.","Dozens of swimmers at a rec center pool have trouble breathing after a chemical release."],"units":["HM","EN","ME","A","BC"]},{"code":"RELOSN","name":"Rescue Lost Party","old":"RELOSR","grp":"Rescues","s":["A hiker says he's lost off-trail and it's getting dark; he isn't hurt.","Parents haven't heard from two teens who left on a hike this morning."],"units":["BU","BC"]},{"code":"RESCU1N","name":"Rescue: Backcountry","old":"RETECR","grp":"Rescues","s":["A climber fell and hurt his leg on a remote trail 3 miles in.","A hiker with a broken ankle can't walk out from a backcountry trail."],"units":["ME","BU","BC"]},{"code":"RESCU2N","name":"Rescue: Water","old":"REWATR","grp":"Rescues","s":["A tuber flipped in the creek and is clinging to a rock.","A car was swept into a flooded creek with the driver inside."],"units":["EN","ME","BC"]},{"code":"RESCU3N","name":"Rescue: Surface Ice Rescue","old":"REWATR","grp":"Rescues","s":["A dog fell through pond ice and the owner is walking out after it.","An ice fisherman broke through and is holding the edge of the ice."],"units":["EN","ME"]},{"code":"RESCU5N","name":"Rescue: Confined Space","old":"RETECR","grp":"Rescues","s":["A worker collapsed inside a storage tank.","A worker is unresponsive at the bottom of a sewer manhole."],"units":["TR","ME","BC"]},{"code":"RESCU6N","name":"Rescue: Structural Collapse","old":"RETECR","grp":"Rescues","s":["Part of a building under construction collapsed with workers inside.","A deck collapsed during a party with people trapped underneath."],"units":["TR","EN","ME","BC"]},{"code":"RESCU7N","name":"Rescue: Urban Rope","old":"RETECR","grp":"Rescues","s":["A window washer is stuck on a stalled platform on the side of an office building.","A person fell down a steep embankment beside a city road and can't climb back up."],"units":["TR","ME"]},{"code":"RESCU8N","name":"Rescue: Trench","old":"RETECR","grp":"Rescues","s":["A construction worker is buried to his chest in a trench cave-in.","A trench wall collapsed on a utility worker."],"units":["TR","ME","BC"]},{"code":"AVLANN","name":"Avalanche or Landslide","old":"FISLIDR","grp":"Rescues","s":["Backcountry skiers say an avalanche buried one of their group.","A mudslide covered a canyon road and a car may be under it."],"units":["BC","ME","BU"]},{"code":"BES1N","name":"BES Drone Request","old":"FISUPR","grp":"Special teams, mutual aid and other","s":["Command at a wildland fire asks for a drone for an overhead view.","A search leader asks for a drone to scan a large field for a missing man."],"units":["BU"]},{"code":"BES2N","name":"BES Search Request","old":"FISUPR","grp":"Special teams, mutual aid and other","s":["Deputies ask BES to help search for an elderly man with dementia who walked away from home.","Command asks for a ground search team to sweep a field for evidence."],"units":["BU","BC","LAW"]},{"code":"BES3N","name":"BES General Request","old":"FISUPR","grp":"Special teams, mutual aid and other","s":["Fire command asks BES for lighting and scene support at a long incident.","Command asks BES for rehab support for crews at a large fire."],"units":["BU"]},{"code":"MECHIN","name":"Metro Chiefs Response Group","old":"METROR","grp":"Special teams, mutual aid and other","s":["Command at a large fire asks for the Metro Chiefs response group.","A chief asks for extra command staff from the Metro Chiefs group for a multi-alarm fire."],"units":["BC"]},{"code":"MUAIDN","name":"Mutual Aid Request","old":"MUAIDR","grp":"Special teams, mutual aid and other","s":["A neighboring county asks for an engine for a large wildfire.","A city fire department asks for mutual aid on a structure fire."],"units":["EN"]},{"code":"WEATHN","name":"Weather","old":"WEATHR","grp":"Special teams, mutual aid and other","s":["The National Weather Service issued a tornado warning for the east county.","A storm spotter reports large hail and damaging winds heading toward town."],"units":["BC"]},{"code":"DAFAIN","name":"Dam Failure","old":"BDCR, BDNR, GDR","grp":"Special teams, mutual aid and other","s":["The dam operator reports water going over the top of the dam and eroding its face.","Caller sees water gushing from a crack at the base of a reservoir dam."],"units":["BC","EN"]},{"code":"CISERS","name":"Civil Service","old":"CISRVS","grp":"Law call types that changed","s":["Deputy calls out a civil service."],"units":["LAW"]},{"code":"HIRUNS","name":"Hit and Run","old":"HRACCS","grp":"Law call types that changed","s":["Caller came out of the store to find her parked car dented; the other driver left.","Driver was rear-ended at a light and the other car drove off westbound."],"units":["LAW"]},{"code":"OUAGES","name":"Outside Agency Assist","old":"OAAS","grp":"Law call types that changed","s":["A city police department asks for a deputy to help hold a perimeter.","State Patrol asks for a deputy to help with traffic at a crash scene."],"units":["LAW"]},{"code":"PRDAMS","name":"Property Damage Crash","old":"PDACCS","grp":"Law call types that changed","s":["Two cars bumped in a parking lot; no one is hurt and the drivers are exchanging information.","A car slid into a fence on a county road; the driver says she isn't injured."],"units":["LAW"]},{"code":"PUWORS","name":"Public Works Request","old":"PWREQS","grp":"Law call types that changed","s":["Caller reports a large pothole that is damaging tires on a county road.","A stop sign has been knocked down at a rural intersection."],"units":["LAW"]},{"code":"SATELS","name":"Safe 2 Tell","old":"STTELS","grp":"Law call types that changed","s":["A Safe2Tell report says a student posted a threat about school online.","A Safe2Tell tip says a student may be thinking about hurting themselves."],"units":["LAW"]}],"resources":[{"code":"CAN","name":"Air Cascade","req":true},{"code":"AMN","name":"Ambulance","req":true},{"code":"BCN","name":"Bat Chiefs","req":true},{"code":"BRN","name":"Brush","req":true},{"code":"BUN","name":"Bureau","req":true},{"code":"CAREN","name":"Care Van","req":true},{"code":"CHN","name":"Chief","req":true},{"code":"DVN","name":"Dive Van","req":true},{"code":"ENN","name":"Engine","req":true},{"code":"HZN","name":"HazMat","req":true},{"code":"HRN","name":"Heavy Rescue","req":true},{"code":"ICVN","name":"ICV","req":true},{"code":"INN","name":"Interface","req":true},{"code":"LAN","name":"Ladder","req":true},{"code":"MEN","name":"Medic","req":true},{"code":"RESN","name":"Rescue","req":true},{"code":"SAN","name":"Safety","req":true},{"code":"SMN","name":"Safety Medical","req":true},{"code":"SQN","name":"Squad","req":true},{"code":"STN","name":"Staff","req":true},{"code":"T1N","name":"Type 1 Engine","req":true},{"code":"T3N","name":"Type 3 Engine","req":true},{"code":"T6N","name":"Type 6 Engine","req":true},{"code":"TEN","name":"Tender","req":true},{"code":"TTN","name":"Test Tone","req":false},{"code":"TON","name":"Tower","req":true},{"code":"TGN","name":"Training","req":false},{"code":"TRN","name":"Truck","req":true},{"code":"UTN","name":"Utility","req":true},{"code":"WRN","name":"Water Rescue","req":true},{"code":"WIN","name":"Wildland","req":true}]}</script>
+<script id="cct-app">
+/* ---------- game data: lives in the #cct-data block above; the admin portal republishes it ---------- */
+const DATA = (() => { try { return JSON.parse(document.getElementById('cct-data').textContent); } catch (e) { return { calls: [], resources: [] }; } })();
+const CALLS = DATA.calls || [], RESOURCES = DATA.resources || [];
+
+
+/* ---------- reference data ---------- */
+const FIRE_UNITS = ['EN202','TO205','ME205','EN424','ME424','EN425','ME425','BC425','BC201','A1','A2','A3','A4','TE202','TE204','TE210','BR205','BR210','BR323','SM201','SM202','IN322','IN424','TR206','TR425','WI202','WI203','HM207','HM424','BU201','BU202'];
+const LAW_UNITS = ['565','654','423','404','L12','L41','E7','E32'];
+const utype = u => (u.match(/^[A-Z]+/) || [''])[0];
+/* Resource types that make sense as a radio request on a call. Test Tone and Training are left out. */
+const REQUESTABLE = RESOURCES.filter(r => r.req !== false);
+const STREETS = ['Lefthand Canyon Dr','Sugarloaf Rd','Flagstaff Rd','Gold Hill Rd','Jay Rd','N 63rd St','N 75th St','Valmont Rd','Niwot Rd','Nelson Rd','Hygiene Rd','Magnolia Dr','Lookout Rd','Ute Hwy','Peak to Peak Hwy','Fourmile Canyon Dr','Linden Dr','Baseline Rd','Arapahoe Rd','Isabelle Rd','Prospect Rd','Overland Rd','Riverside Dr','Coal Creek Dr'];
+const CROSS = ['N 41st St','N 51st St','N 61st St','N 83rd St','N 95th St','Hwy 36','Hwy 119','Hwy 52','Hwy 287','Hwy 7','County Rd 68','County Rd 72','Gunbarrel Rd','Lee Hill Dr','Mapleton Ave'];
+const FIRST = ['Jordan','Maria','Sam','Alex','Priya','Dana','Luis','Kim','Rachel','Tom','Ana','Marcus','Grace','Eli','Nora','Owen','Tess','Diego'];
+const LAST = ['Alvarez','Chen','Ortiz','Reed','Patel','Nguyen','Bell','Watts','Kim','Larsen','Shah','Moreno','Foster','Hale','Quinn','Ibarra'];
+const RADIO = [
+  (u,id,d) => `“Boulder, ${u}. Add ${art(d)} to my incident.”`,
+  (u,id,d) => `“${u} on ${id}, requesting ${art(d)}.”`,
+  (u,id,d) => `“Dispatch, ${u}. Go ahead and start ${art(d)} to this call.”`,
+  (u,id,d) => `“${u}, we’re going to need ${art(d)} out here.”`,
+  (u,id,d) => `“Boulder, ${u} on incident ${id}. Can you add ${art(d)}?”`
+];
+function art(d){ if (/s$/.test(d)) return 'the ' + d; const w = d.replace(/^Type /,'type '); return (/^[AEIOU]/i.test(w) && !/^U(tility)/.test(w) ? 'an ' : 'a ') + w; }
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const pad = n => String(n).padStart(2,'0');
+const hms = d => pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+const callByCode = c => CALLS.find(x => x.code === c);
+const resByCode = c => RESOURCES.find(x => x.code === c);
+const isFire = code => /N$/.test(code);
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+
+
+/* ---------- color profiles ---------- */
+const PROFILES = [['console','Console'],['slate','Slate'],['sage','Sage'],['pink','Pink'],['paper','Paper'],['night','Night'],['lowlight','Low light (red)']];
+const PKEY = 'cct-profile-v1';
+function initialProfile(){
+  const s = store.get(PKEY); if (s && PROFILES.some(p => p[0] === s)) return s;
+  const host = document.documentElement.dataset.theme;
+  if (host === 'dark' || (!host && matchMedia('(prefers-color-scheme: dark)').matches)) return 'night';
+  return 'console';
+}
+let PROFILE = initialProfile();
+function applyProfile(p){ PROFILE = p; if (p === 'console') delete document.documentElement.dataset.profile; else document.documentElement.dataset.profile = p; }
+applyProfile(PROFILE);
+function profileHtml(){
+  return `<label class="prof"><span>Colors</span><select id="profileSel" aria-label="Color profile">${PROFILES.map(([k,l]) => `<option value="${k}"${k === PROFILE ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`;
+}
+document.addEventListener('change', e => { if (e.target.id === 'profileSel'){ applyProfile(e.target.value); store.set(PKEY, e.target.value); } });
+
+/* ---------- persistent stats + weights (this browser only) ---------- */
+const SKEY = 'cct-stats-v1';
+const saved = store.get(SKEY) || {};
+const ST = {
+  correct: saved.correct || 0, attempts: saved.attempts || 0, best: saved.best || 0, streak: 0,
+  w: saved.w || {}
+};
+const saveStats = () => store.set(SKEY, { correct: ST.correct, attempts: ST.attempts, best: ST.best, w: ST.w });
+const wOf = k => ST.w[k] || 1;
+function weighted(items, keyFn){
+  const tot = items.reduce((s,i) => s + wOf(keyFn(i)), 0);
+  let r = Math.random() * tot;
+  for (const i of items){ r -= wOf(keyFn(i)); if (r <= 0) return i; }
+  return items[items.length - 1];
+}
+function logTask(t, result){
+  if (!t || t.logged) return;
+  t.logged = true;
+  G.log.push({ kind: t.kind, code: t.kind === 'call' ? t.code : t.res, text: t.text, unit: t.unit, callId: t.callId, result, wrong: [...(t.wrong || [])] });
+}
+function markResult(key, firstTry){
+  ST.attempts++;
+  if (firstTry){ ST.correct++; ST.streak++; ST.best = Math.max(ST.best, ST.streak); ST.w[key] = Math.max(1, wOf(key) - 1); if (ST.w[key] === 1) delete ST.w[key]; }
+  else { ST.streak = 0; ST.w[key] = Math.min(6, wOf(key) + 2); }
+  saveStats(); renderStats();
+}
+
+/* ---------- game state ---------- */
+const G = { mode: null, queue: [], task: null, last: null, recent: [], round: 0 };
+function newId(){ let id; do { id = String(100 + Math.floor(Math.random() * 900)); } while (G.queue.some(c => c.id === id)); return id; }
+const busy = () => new Set(G.queue.flatMap(c => c.units));
+function assignUnits(code){
+  const taken = busy(), out = [];
+  if (!isFire(code)){
+    const free = LAW_UNITS.filter(u => !taken.has(u));
+    const n = Math.random() < .5 ? 1 : 2;
+    for (let i = 0; i < n && free.length; i++) out.push(free.splice(Math.floor(Math.random() * free.length), 1)[0]);
+    return out;
+  }
+  const plan = (callByCode(code) || {}).units;
+  (plan && plan.length ? plan : ['EN']).forEach(t => {
+    if (t === 'LAW'){ const lf = LAW_UNITS.filter(u => !taken.has(u) && !out.includes(u)); if (lf.length) out.push(pick(lf)); return; }
+    const free = FIRE_UNITS.filter(u => utype(u) === t && !taken.has(u) && !out.includes(u));
+    if (free.length) out.push(pick(free));
+  });
+  if (!out.length){ const any = FIRE_UNITS.filter(u => !taken.has(u)); if (any.length) out.push(pick(any)); }
+  return out;
+}
+function makeLocation(){
+  return { addr: (Math.floor(Math.random() * 98) + 1) * 100 + Math.floor(Math.random() * 90) + ' ' + pick(STREETS), cross: pick(CROSS) };
+}
+function addToQueue(code, id, loc){
+  const call = { id: id || newId(), code, ...(loc || makeLocation()), units: [], adds: [], at: Date.now() };
+  call.units = assignUnits(code);
+  G.queue.push(call);
+  while (G.queue.length > 5) G.queue.shift();
+  return call;
+}
+function seedQueue(n, fireOnly){
+  const pool = CALLS.filter(c => !fireOnly || isFire(c.code));
+  for (let i = 0; i < n; i++) addToQueue(pick(pool).code);
+}
+
+/* ---------- task generation ---------- */
+function nextCallTask(){
+  let c, tries = 0;
+  do { c = weighted(CALLS, x => 'C:' + x.code); tries++; } while (G.recent.includes(c.code) && tries < 20);
+  G.recent = [...G.recent, c.code].slice(-6);
+  const loc = makeLocation();
+  return { kind: 'call', code: c.code, text: pick(c.s), id: newId(), loc,
+    caller: pick(FIRST) + ' ' + pick(LAST), phone: '303-555-01' + pad(Math.floor(Math.random() * 100)),
+    at: new Date(), misses: 0, solved: false };
+}
+function nextRadioTask(){
+  const canAsk = u => FIRE_UNITS.includes(u) && utype(u) !== 'A';
+  const fire = G.queue.filter(c => isFire(c.code) && c.units.some(canAsk));
+  if (!fire.length) return null;
+  const call = pick(fire);
+  const unit = pick(call.units.filter(canAsk));
+  const res = weighted(REQUESTABLE.filter(r => !call.adds.includes(r.code)), r => 'R:' + r.code);
+  return { kind: 'radio', callId: call.id, unit, res: res.code, text: pick(RADIO)(unit, call.id, res.name), misses: 0, solved: false };
+}
+function nextTask(){
+  G.round++;
+  let t = null;
+  if (G.mode === 'res'){
+    if (G.round % 3 === 0) addToQueue(pick(CALLS.filter(c => isFire(c.code))).code);
+    t = nextRadioTask();
+  } else if (G.mode === 'mix'){
+    const lastWasCall = G.last && G.last.kind === 'call';
+    if (lastWasCall || Math.random() < .25) t = nextRadioTask();
+  }
+  if (!t) t = nextCallTask();
+  G.task = t; G.last = t;
+  renderGame();
+}
+
+/* ---------- views ---------- */
+const MODES = [['call','Call types'],['res','Resource types'],['mix','Combined'],['flash','Flashcards']];
+function modesHtml(cur){
+  return `<div class="modes" role="group" aria-label="Mode">${MODES.map(([k,l]) => `<button data-mode="${k}" aria-pressed="${cur===k}">${l}</button>`).join('')}</div>`;
+}
+function renderLanding(){
+  G.view = 'home';
+  $('#app').innerHTML = `
+  <header class="bar wrap"><span class="brand">Code Change Trainer<small>Boulder County</small></span><span class="spacer"></span>${profileHtml()}<span class="clock">--:--:--</span></header>
+  <main class="landing wrap">
+    <h1>Choose a game</h1>
+    <div class="choices">
+      <button class="choice" data-mode="call"><h2>Call types</h2><span class="meta">${CALLS.length} call types</span></button>
+      <button class="choice" data-mode="res"><h2>Resource types</h2><span class="meta">${REQUESTABLE.length} resource codes</span></button>
+      <button class="choice" data-mode="mix"><h2>Combined</h2><span class="meta">Calls and radio traffic</span></button>
+      <button class="choice" data-mode="flash"><h2>Flashcards</h2><span class="meta">Call types, resource codes, old → new</span></button>
+    </div>
+    ${CAN_EDIT ? '<div class="foot"><button class="linkbtn" data-act="admin">Admin</button></div>' : ''}
+  </main>`;
+  tick();
+}
+
+/* ---------- flashcards (Leitner boxes, saved in this browser) ---------- */
+const FLASH_KEY = 'cct-flash-v1', FPREF_KEY = 'cct-flash-prefs-v1';
+const FBOX = store.get(FLASH_KEY) || {};
+const fpref = store.get(FPREF_KEY) || {};
+const F = { deck: fpref.deck || 'call', dir: fpref.dir || 'fwd', input: fpref.input || 'flip', card: null, side: 'fwd', f: null, flipped: false, recent: [], seen: 0, got: 0, result: null };
+const saveF = () => { store.set(FLASH_KEY, FBOX); store.set(FPREF_KEY, { deck: F.deck, dir: F.dir, input: F.input }); };
+const OLDMAP = {};
+CALLS.forEach(c => c.old.split(/,\s*/).forEach(o => (OLDMAP[o] = OLDMAP[o] || []).push(c)));
+function deckCards(d){
+  const calls = CALLS.map(c => ({ key: 'C:' + c.code, type: 'call', c }));
+  const res = RESOURCES.map(r => ({ key: 'R:' + r.code, type: 'res', r }));
+  const old = Object.keys(OLDMAP).sort().map(o => ({ key: 'O:' + o, type: 'old', o, list: OLDMAP[o].slice().sort((a,b) => a.code.localeCompare(b.code)) }));
+  return d === 'call' ? calls : d === 'res' ? res : d === 'old' ? old : [...calls, ...res, ...old];
+}
+const boxOf = k => FBOX[k] || 1;
+const BOXW = { 1: 16, 2: 8, 3: 4, 4: 2, 5: 1 };
+function faces(card, dir){
+  if (card.type === 'call'){
+    const c = card.c;
+    return dir === 'fwd'
+      ? { tag: 'Call type', front: esc(c.name), code: false, hint: 'What is the new code?', back: `<div class="fmain code">${esc(c.code)}</div><div class="fsub">Old code ${esc(c.old)}</div>`, answer: [c.code] }
+      : { tag: 'Call type', front: esc(c.code), code: true, hint: 'What call type is this?', back: `<div class="fmain">${esc(c.name)}</div><div class="fsub">Old code ${esc(c.old)}</div>`, answer: null };
+  }
+  if (card.type === 'res'){
+    const r = card.r;
+    return dir === 'fwd'
+      ? { tag: 'Resource type', front: esc(r.name), code: false, hint: 'What is the code?', back: `<div class="fmain code">${esc(r.code)}</div>`, answer: [r.code] }
+      : { tag: 'Resource type', front: esc(r.code), code: true, hint: 'What resource is this?', back: `<div class="fmain">${esc(r.name)}</div>`, answer: null };
+  }
+  const n = card.list.length;
+  return { tag: 'Old code', front: esc(card.o), code: true, hint: n > 1 ? `It became ${n} new codes. Name them all.` : 'What is the new code?',
+    back: `<div class="flist">${card.list.map(c => `<div><b>${esc(c.code)}</b><span>${esc(c.name)}</span></div>`).join('')}</div>`, answer: card.list.map(c => c.code) };
+}
+function nextCard(){
+  const cards = deckCards(F.deck);
+  const pool = cards.length > 4 ? cards.filter(c => !F.recent.includes(c.key)) : cards;
+  let r = Math.random() * pool.reduce((s,c) => s + BOXW[boxOf(c.key)], 0), ch = pool[pool.length - 1];
+  for (const c of pool){ r -= BOXW[boxOf(c.key)]; if (r <= 0){ ch = c; break; } }
+  F.recent = [...F.recent, ch.key].slice(-3);
+  let dir = F.input === 'type' ? 'fwd' : F.dir === 'rand' ? (Math.random() < .5 ? 'fwd' : 'rev') : F.dir;
+  if (ch.type === 'old') dir = 'fwd';
+  F.card = ch; F.side = dir; F.f = faces(ch, dir); F.flipped = false; F.result = null;
+  drawFlash();
+}
+function grade(got){
+  const k = F.card.key;
+  FBOX[k] = got ? Math.min(5, boxOf(k) + 1) : 1;
+  F.seen++; if (got) F.got++;
+  saveF();
+}
+function checkTyped(){
+  const inp = $('#fIn'); if (!inp) return;
+  const toks = inp.value.trim().toUpperCase().split(/[\s,]+/).filter(Boolean);
+  if (!toks.length){ inp.focus(); return; }
+  const ans = F.f.answer, missing = ans.filter(a => !toks.includes(a)), extra = toks.filter(x => !ans.includes(x));
+  const ok = !missing.length && !extra.length;
+  F.result = { ok, typed: toks.join(' '), missing, extra };
+  F.flipped = true; grade(ok); drawFlash();
+  const nb = $('#fNext'); nb && nb.focus();
+}
+function progHtml(){
+  const cards = deckCards(F.deck), cnt = [0,0,0,0,0,0];
+  cards.forEach(c => cnt[boxOf(c.key)]++);
+  const seg = [1,2,3,4,5].map(b => cnt[b] ? `<span class="b${b}" style="flex:${cnt[b]}" title="Box ${b}: ${cnt[b]}"></span>` : '').join('');
+  return `<div class="fprog-top"><span><b>${cnt[5]}</b> of ${cards.length} mastered</span><span class="fkey"><i class="b1"></i>New <i class="b3"></i>Learning <i class="b5"></i>Mastered</span></div><div class="fbar">${seg}</div>`;
+}
+function drawFlash(){
+  const f = F.f, st = $('#fstage'); if (!st) return;
+  let acts;
+  if (F.input === 'flip'){
+    acts = F.flipped
+      ? `<div class="factions"><button class="btn big miss" data-fact="miss">Missed it</button><button class="btn big got" data-fact="got">Got it</button></div><p class="fkeys">← missed · → got it</p>`
+      : `<div class="factions"><button class="btn big primary" data-fact="flip" id="fFlip">Flip card</button></div><p class="fkeys">Space to flip</p>`;
+  } else if (!F.flipped){
+    acts = `<form class="ftype" id="fForm" autocomplete="off"><input class="inp" id="fIn" placeholder="${f.answer.length > 1 ? 'Type every new code, separated by spaces' : 'Type the code'}" spellcheck="false" autocapitalize="characters" aria-label="Your answer"><button class="btn primary" type="submit">Check</button></form>`;
+  } else {
+    const r = F.result;
+    const msg = r.ok ? `Correct.` : `You typed <span class="mono">${esc(r.typed)}</span>.${r.missing.length ? ` Missing <span class="mono">${r.missing.map(esc).join(' ')}</span>.` : ''}${r.extra.length ? ` Not part of it: <span class="mono">${r.extra.map(esc).join(' ')}</span>.` : ''}`;
+    acts = `<div class="fb ${r.ok ? 'ok' : 'err'}">${msg}</div><div class="factions"><button class="btn big primary" data-fact="next" id="fNext">Next card</button></div><p class="fkeys">Enter for the next card</p>`;
+  }
+  st.innerHTML = `<div class="fcard${F.flipped ? ' flipped' : ''}${F.result ? (F.result.ok ? ' right' : ' wrong') : ''}">
+      <div class="ftag">${f.tag}</div>
+      <div class="fmain front${f.code ? ' code' : ''}">${f.front}</div>
+      ${F.flipped ? `<div class="fback">${f.back}</div>` : `<div class="fhint">${f.hint}</div>`}
+    </div>${acts}`;
+  $('#fprog').innerHTML = progHtml();
+  $('#fsess').innerHTML = `<span>This session: ${F.seen} cards · ${F.got} got it</span><button class="linkbtn" data-fact="reset">Reset this deck</button><button class="linkbtn" data-act="home">Change mode</button>`;
+  if (F.input === 'type' && !F.flipped && matchMedia('(pointer:fine)').matches) setTimeout(() => { const i = $('#fIn'); i && i.focus(); }, 0);
+}
+function renderFlash(){
+  G.view = 'flash';
+  const seg = (name, opts, cur, attr, off) => `<div class="seg" role="group" aria-label="${name}">${opts.map(([k,l]) => `<button ${attr}="${k}" aria-pressed="${cur===k}" ${off ? 'disabled' : ''}>${l}</button>`).join('')}</div>`;
+  const dirOff = F.input === 'type' || F.deck === 'old';
+  $('#app').innerHTML = `
+  <header class="bar wrap"><span class="brand">Code Change Trainer</span>${modesHtml('flash')}<span class="spacer"></span>${profileHtml()}<span class="clock">--:--:--</span></header>
+  <main class="flash wrap">
+    <div class="fctl">
+      ${seg('Deck', [['call','Call types'],['res','Resource codes'],['old','Old → New'],['mix','Mixed']], F.deck, 'data-fdeck')}
+      ${seg('Direction', [['fwd','Name → Code'],['rev','Code → Name'],['rand','Random']], dirOff ? 'fwd' : F.dir, 'data-fdir', dirOff)}
+      ${seg('Answer', [['flip','Flip'],['type','Type it']], F.input, 'data-finput')}
+    </div>
+    <div class="fprog" id="fprog"></div>
+    <div class="fstage" id="fstage"></div>
+    <div class="foot" id="fsess"></div>
+  </main>`;
+  F.recent = [];
+  nextCard(); tick();
+}
+document.addEventListener('submit', e => { if (e.target.id === 'fForm'){ e.preventDefault(); checkTyped(); } });
+document.addEventListener('keydown', e => {
+  if (G.view !== 'flash' || !F.card) return;
+  if (e.target.closest('button') || e.target.matches('input')) return;
+  if (F.input === 'type'){ if (F.flipped && e.key === 'Enter'){ e.preventDefault(); nextCard(); } return; }
+  if (!F.flipped && (e.key === ' ' || e.key === 'Enter')){ e.preventDefault(); F.flipped = true; drawFlash(); }
+  else if (F.flipped && (e.key === 'ArrowRight' || e.key === '2')){ grade(true); nextCard(); }
+  else if (F.flipped && (e.key === 'ArrowLeft' || e.key === '1')){ grade(false); nextCard(); }
+});
+
+function cheatHtml(){
+  const calls = `<div class="cheat-sec"><h3>Call types</h3><div class="cheat-grid">${CALLS.slice().sort((a,b) => a.code.localeCompare(b.code)).map(c => `<div class="ch"><b>${esc(c.code)}</b><span>${esc(c.name)}</span><small>was ${esc(c.old)}</small></div>`).join('')}</div></div>`;
+  const res = `<div class="cheat-sec"><h3>Resource codes</h3><div class="cheat-grid">${RESOURCES.slice().sort((a,b) => a.code.localeCompare(b.code)).map(r => `<div class="ch"><b>${esc(r.code)}</b><span>${esc(r.name)}</span></div>`).join('')}</div></div>`;
+  return G.mode === 'call' ? calls : G.mode === 'res' ? res : calls + res;
+}
+
+const MODE_NAME = { call: 'Call types', res: 'Resource types', mix: 'Combined' };
+function renderReport(){
+  G.view = 'report';
+  const L = G.log || [];
+  const n = k => L.filter(x => x.result === k).length;
+  const first = n('first'), retry = n('retry'), missed = n('missed'), skipped = n('skipped');
+  const pct = L.length ? Math.round(first / L.length * 100) + '%' : '–';
+  const secs = Math.round((Date.now() - (G.started || Date.now())) / 1000);
+  const time = Math.floor(secs / 60) + ':' + pad(secs % 60);
+  const order = { missed: 0, retry: 1, skipped: 2 };
+  const review = L.filter(x => x.result !== 'first').sort((a,b) => order[a.result] - order[b.result]);
+  const label = { retry: 'Second try', missed: 'Missed', skipped: 'Skipped' };
+  const rows = review.map(x => {
+    let q, ans;
+    if (x.kind === 'call'){
+      const c = callByCode(x.code);
+      q = esc(x.text);
+      ans = `${esc(c.code)} - ${esc(c.name)}<small>Old code ${esc(c.old)}</small>`;
+    } else {
+      const r = resByCode(x.code);
+      q = `Radio, ${esc(x.unit)} on incident ${esc(x.callId)}: ${esc(x.text)}`;
+      ans = `RES ${esc(x.unit)} ${esc(r.code)}<small>${esc(r.name)}</small>`;
+    }
+    return `<tr><td><span class="res-pill ${x.result}">${label[x.result]}</span></td><td>${q}</td><td class="ans">${ans}</td><td class="gave">${x.wrong.length ? x.wrong.map(esc).join('<br>') : '<span style="color:var(--muted)">–</span>'}</td></tr>`;
+  }).join('');
+  $('#app').innerHTML = `
+  <header class="bar wrap"><span class="brand">Code Change Trainer</span><span class="spacer"></span>${profileHtml()}<span class="clock">--:--:--</span></header>
+  <main class="report wrap">
+    <div>
+      <div class="eyebrow">Report card · ${MODE_NAME[G.mode] || ''}</div>
+      <h1>${L.length ? `${first} of ${L.length} right on the first try` : 'No questions answered this round'}</h1>
+      <p class="sub">${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · ${hms(new Date())} · round time ${time}</p>
+    </div>
+    <div class="tiles">
+      <div class="tile lead"><span class="k">First try</span><span class="n">${pct}</span></div>
+      <div class="tile"><span class="k">Questions</span><span class="n">${L.length}</span></div>
+      <div class="tile"><span class="k">Second try</span><span class="n">${retry}</span></div>
+      <div class="tile"><span class="k">Missed</span><span class="n">${missed}</span></div>
+      <div class="tile"><span class="k">Skipped</span><span class="n">${skipped}</span></div>
+    </div>
+    ${!L.length ? '' : review.length ? `<section style="display:grid;gap:8px"><div class="eyebrow">Review these</div><div class="rev-wrap"><table class="rev"><thead><tr><th>Result</th><th>Question</th><th>Answer</th><th>You entered</th></tr></thead><tbody>${rows}</tbody></table></div></section>` : '<div class="clean">Every answer was right on the first try. Nothing to review.</div>'}
+    <div class="acts"><button class="btn primary" data-act="again">Start a new round</button><button class="btn" data-act="home">Change mode</button></div>
+  </main>`;
+  tick();
+}
+
+function renderStats(){
+  const el = $('#stats'); if (!el) return;
+  const acc = ST.attempts ? Math.round(ST.correct / ST.attempts * 100) + '%' : '–';
+  el.innerHTML = `<span class="stat">Streak <b>${ST.streak}</b></span><span class="stat">Best <b>${ST.best}</b></span><span class="stat">First try <b>${acc}</b></span>`;
+}
+
+function shell(){
+  G.view = 'game';
+  $('#app').innerHTML = `
+  <header class="bar wrap">
+    <span class="brand">Code Change Trainer</span>
+    ${modesHtml(G.mode)}
+    <span class="spacer"></span>
+    <div class="stats" id="stats"></div>
+    ${profileHtml()}<span class="clock">--:--:--</span>
+  </header>
+  <main class="game wrap">
+    <section class="a-scen scen">
+      <div class="scen-cheat"><button class="btn" id="cheatBtn" data-act="cheat" aria-expanded="${G.cheat ? 'true' : 'false'}" aria-controls="cheat">Cheat Sheet</button></div>
+      <div class="scen-box" id="scenBox" aria-live="polite"></div>
+      <div class="scen-act"><button class="btn primary" id="nextBtn" data-act="next">Skip</button><button class="btn end" data-act="end">End round</button></div>
+    </section>
+    <section class="pane a-cheat" id="cheat" ${G.cheat ? '' : 'hidden'}>
+      <div class="pane-h"><h2>Cheat sheet</h2><span class="count">${G.mode === 'res' ? 'Resource codes' : G.mode === 'call' ? 'New call types and the old codes they replace' : 'Call types and resource codes'}</span></div>
+      <div class="cheat-scroll">${cheatHtml()}</div>
+    </section>
+    <div class="a-left">
+      <section class="pane" id="ectPane">
+        <div class="pane-h"><h2>ECT</h2><span class="count">Emergency call taking</span></div>
+        <div id="ect"></div>
+      </section>
+      <section class="pane" id="cmdPane">
+        <div class="pane-h"><h2>Command line</h2><span class="spacer"></span><div class="seg small" role="group" aria-label="Command entry"><button type="button" data-cmdmode="syntax" aria-pressed="${CMDMODE==='syntax'}">Syntax</button><button type="button" data-cmdmode="code" aria-pressed="${CMDMODE==='code'}">Code only</button></div></div>
+        <form class="cmd-body" id="cmdForm" autocomplete="off">
+          <div class="cmd-row">
+            <input class="inp" id="cmdIn" placeholder="${cmdPlaceholder()}" spellcheck="false" autocapitalize="characters" aria-label="Command line">
+            <button class="btn primary" type="submit" id="cmdBtn">Submit</button>
+          </div>
+          <div id="cmdFb"></div>
+          <p class="syntax" id="cmdSyntax">${cmdSyntaxHtml()}</p>
+        </form>
+      </section>
+      <div class="foot"><button class="linkbtn" data-act="home">Change mode</button><button class="linkbtn" data-act="reset">Reset my score</button></div>
+    </div>
+    <section class="pane a-queue">
+      <div class="pane-h"><h2>Call queue</h2><span class="count" id="qcount"></span></div>
+      <div class="qhead"><span>ID</span><span>Assigned units</span><span>Problem</span><span>Address</span></div>
+      <div class="qlist" id="queue"></div>
+    </section>
+  </main>`;
+  $('#cmdForm').addEventListener('submit', e => { e.preventDefault(); submitCommand(); });
+  renderStats(); tick();
+}
+
+function renderGame(){
+  const t = G.task;
+  // scenario box
+  const box = $('#scenBox');
+  box.classList.toggle('solved', t.solved);
+  if (t.kind === 'call'){
+    box.innerHTML = `<div class="kind"><span class="pill call">911 call</span><span>INCIDENT ${t.id}</span></div>
+      <div class="scen-text">${esc(t.text)}</div>
+      <div class="scen-task">${t.solved ? 'Call created. Press Continue for the next one.' : 'Enter the call type in the ECT and create the call.'}</div>`;
+  } else {
+    box.innerHTML = `<div class="kind"><span class="pill radio">Radio</span><span>${esc(t.unit)}</span></div>
+      <div class="scen-text"><span class="q">${esc(t.text)}</span></div>
+      <div class="scen-task">${t.solved ? 'Resource added. Press Continue for the next one.' : 'Add the resource from the command line.'}</div>`;
+  }
+  const nb = $('#nextBtn');
+  nb.textContent = t.solved ? 'Continue' : 'Skip';
+  nb.className = 'btn ' + (t.solved ? 'go' : 'primary');
+  // ECT
+  const ect = $('#ect');
+  $('#ectPane').classList.toggle('off', t.kind !== 'call');
+  if (t.kind === 'call'){
+    const c = callByCode(t.code);
+    ect.innerHTML = `<div class="ect-body">
+      <div class="fields">
+        <div class="f"><span class="lbl">Incident</span><span class="ro">${t.id}</span></div>
+        <div class="f full"><span class="lbl">Narrative</span><div class="narr">${hms(t.at)} ${esc(t.text)}</div></div>
+      </div>
+      <div class="f full"><label class="lbl" for="ctIn">Call type</label>
+        <div class="ct-row">
+          <div class="combo">
+            <input class="inp" id="ctIn" role="combobox" aria-expanded="false" aria-controls="ctList" aria-autocomplete="list" placeholder="Type the call type code" spellcheck="false" autocomplete="off" ${t.solved ? 'disabled' : ''} value="${t.solved ? esc(c.code + ' - ' + c.name) : ''}">
+            <ul class="lb" id="ctList" role="listbox" hidden></ul>
+          </div>
+          <button class="btn primary" id="createBtn" data-act="create" ${t.solved ? 'disabled' : ''}>Create call</button>
+        </div>
+      </div>
+      <div id="ectFb"></div>
+    </div>`;
+    if (t.solved){ $('#ctIn').classList.add('good'); showEctFb(); }
+    wireCombo();
+    if (!t.solved) setTimeout(() => { const i = $('#ctIn'); if (i && matchMedia('(pointer:fine)').matches) i.focus(); }, 0);
+  } else {
+    ect.innerHTML = `<div class="idle">No call in progress. Radio traffic goes in the command line.</div>`;
+  }
+  // command line
+  const ci = $('#cmdIn'), cb = $('#cmdBtn');
+  const radio = t.kind === 'radio' && !t.solved;
+  $('#cmdPane').classList.toggle('off', t.kind !== 'radio');
+  ci.disabled = !radio; cb.disabled = !radio;
+  ci.classList.remove('good','bad');
+  if (t.kind !== 'radio'){ ci.value = ''; $('#cmdFb').innerHTML = ''; }
+  else if (!t.solved){ ci.value = ''; $('#cmdFb').innerHTML = ''; if (matchMedia('(pointer:fine)').matches) setTimeout(() => ci.focus(), 0); }
+  renderQueue();
+}
+
+function renderQueue(){
+  const t = G.task;
+  const list = [...G.queue].reverse();
+  $('#qcount').textContent = G.queue.length + ' of 5 open';
+  $('#queue').innerHTML = list.length ? list.map(c => {
+    const info = callByCode(c.code);
+    return `<div class="qrow${c.fresh ? ' fresh' : ''}" data-id="${c.id}">
+      <span class="id">${c.id}</span>
+      <span class="units">${c.units.map(u => `<span class="u ${LAW_UNITS.includes(u) ? 'law' : 'fire'}">${esc(u)}</span>`).join('')}${c.adds.map(a => `<span class="u add" title="${esc(resByCode(a).name)}">+${esc(a)}</span>`).join('')}</span>
+      <span class="pc">${esc(c.code)}<small>${esc(info ? info.name : '')}</small></span>
+      <span class="addr">${esc(c.addr)}</span>
+    </div>`;
+  }).join('') : '<div class="qempty">No open calls.</div>';
+  G.queue.forEach(c => delete c.fresh);
+}
+
+/* ---------- ECT call type combobox ---------- */
+let opts = [], active = -1;
+/* Search matches call type codes only, never names. */
+function filterCalls(q){
+  const head = q.trim().toUpperCase().split(/\s+-\s+|\s+/)[0];
+  if (!head) return [];
+  const starts = CALLS.filter(c => c.code.startsWith(head)).sort((a,b) => a.code.localeCompare(b.code));
+  const inside = CALLS.filter(c => !starts.includes(c) && c.code.includes(head)).sort((a,b) => a.code.localeCompare(b.code));
+  return [...starts, ...inside];
+}
+function drawList(){
+  const ul = $('#ctList'), inp = $('#ctIn');
+  if (!ul) return;
+  if (!inp.value.trim()){ closeList(); return; }
+  ul.innerHTML = opts.length ? opts.map((c,i) => `<li role="option" id="opt${i}" data-i="${i}" aria-selected="${i===active}"><b>${c.code}</b><span>${esc(c.name)}</span></li>`).join('') : '<li class="none">No matching call type</li>';
+  ul.hidden = false; inp.setAttribute('aria-expanded','true');
+  if (active >= 0){ inp.setAttribute('aria-activedescendant','opt'+active); const li = $('#opt'+active); li && li.scrollIntoView({block:'nearest'}); }
+  else inp.removeAttribute('aria-activedescendant');
+}
+function closeList(){ const ul = $('#ctList'); if (ul){ ul.hidden = true; $('#ctIn').setAttribute('aria-expanded','false'); } }
+function choose(c){ const inp = $('#ctIn'); inp.value = c.code + ' - ' + c.name; inp.classList.remove('bad'); closeList(); }
+function wireCombo(){
+  const inp = $('#ctIn'); if (!inp || inp.disabled) return;
+  inp.addEventListener('input', () => { inp.classList.remove('bad'); opts = filterCalls(inp.value); active = opts.length ? 0 : -1; drawList(); });
+  inp.addEventListener('focus', () => { opts = filterCalls(inp.value); active = -1; drawList(); });
+  inp.addEventListener('blur', () => setTimeout(closeList, 150));
+  inp.addEventListener('keydown', e => {
+    const ul = $('#ctList');
+    if (e.key === 'ArrowDown'){ e.preventDefault(); if (ul.hidden){ opts = filterCalls(inp.value); } active = Math.min(opts.length - 1, active + 1); drawList(); }
+    else if (e.key === 'ArrowUp'){ e.preventDefault(); active = Math.max(0, active - 1); drawList(); }
+    else if (e.key === 'Escape'){ closeList(); }
+    else if (e.key === 'Enter'){
+      e.preventDefault();
+      if (!ul.hidden && active >= 0 && opts[active]) choose(opts[active]);
+      else createCall();
+    }
+  });
+  $('#ctList').addEventListener('mousedown', e => { const li = e.target.closest('li[data-i]'); if (li){ e.preventDefault(); choose(opts[+li.dataset.i]); } });
+}
+function readCallType(v){
+  v = v.trim().toUpperCase(); if (!v) return null;
+  const code = v.split(/\s+-\s+|\s+/)[0];
+  return CALLS.find(c => c.code === code) || null;
+}
+function showEctFb(msg, cls){
+  const t = G.task, c = callByCode(t.code), fb = $('#ectFb');
+  if (t.solved) fb.innerHTML = `<div class="fb ok">${t.misses ? 'Answer' : 'Correct'}: <span class="mono">${esc(c.code)} - ${esc(c.name)}</span>. Old code: <span class="mono">${esc(c.old)}</span>.</div>`;
+  else fb.innerHTML = `<div class="fb ${cls}">${msg}</div>`;
+}
+function createCall(){
+  const t = G.task; if (!t || t.kind !== 'call' || t.solved) return;
+  const inp = $('#ctIn'), pickd = readCallType(inp.value), c = callByCode(t.code);
+  closeList();
+  if (!inp.value.trim()){ showEctFb('Enter a call type first.', 'info'); inp.focus(); return; }
+  if (!pickd){ inp.classList.remove('bad'); void inp.offsetWidth; inp.classList.add('bad'); showEctFb(`<span class="mono">${esc(inp.value.trim().toUpperCase())}</span> isn't on the call type list. Pick one from the list.`, 'err'); return; }
+  if (pickd.code === t.code){
+    t.solved = true; markResult('C:' + t.code, t.misses === 0); logTask(t, t.misses ? 'retry' : 'first');
+    const call = addToQueue(t.code, t.id, t.loc); call.fresh = true;
+    renderGame(); $('#nextBtn').focus(); return;
+  }
+  t.misses++; (t.wrong = t.wrong || []).push(pickd.code);
+  inp.classList.remove('bad'); void inp.offsetWidth; inp.classList.add('bad');
+  if (t.misses >= 2){
+    t.solved = true; markResult('C:' + t.code, false); logTask(t, 'missed');
+    const call = addToQueue(t.code, t.id, t.loc); call.fresh = true;
+    renderGame(); $('#ectFb').innerHTML = `<div class="fb err">Not ${esc(pickd.code)}. The answer is <span class="mono">${esc(c.code)} - ${esc(c.name)}</span> (old code <span class="mono">${esc(c.old)}</span>).</div>`;
+    $('#nextBtn').focus(); return;
+  }
+  showEctFb(`<span class="mono">${esc(pickd.code)} - ${esc(pickd.name)}</span> isn't right for this call. Try again.`, 'err');
+}
+
+/* ---------- command line ---------- */
+const CMD_KEY = 'cct-cmdmode-v1';
+let CMDMODE = store.get(CMD_KEY) === 'code' ? 'code' : 'syntax';
+const cmdPlaceholder = () => CMDMODE === 'code' ? 'Resource code, like TEN' : 'RES [unit or incident] [resource code]';
+const cmdSyntaxHtml = () => CMDMODE === 'code' ? 'Code only: type just the resource code the unit asked for.' : '<span class="mono">RES unit CODE</span> or <span class="mono">unit RES CODE</span>. The unit can be swapped for the incident number.';
+function setCmdMode(m){
+  CMDMODE = m; store.set(CMD_KEY, m);
+  document.querySelectorAll('[data-cmdmode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cmdmode === m)));
+  const ci = $('#cmdIn'); if (ci){ ci.placeholder = cmdPlaceholder(); if (!ci.disabled){ ci.value = ''; ci.classList.remove('bad','good'); $('#cmdFb').innerHTML = ''; } }
+  const sx = $('#cmdSyntax'); if (sx) sx.innerHTML = cmdSyntaxHtml();
+}
+function cmdFb(msg, cls){ $('#cmdFb').innerHTML = `<div class="fb ${cls}">${msg}</div>`; }
+function submitCommand(){
+  const t = G.task; if (!t || t.kind !== 'radio' || t.solved) return;
+  const ci = $('#cmdIn'), raw = ci.value.trim().toUpperCase();
+  const call = G.queue.find(c => c.id === t.callId), res = resByCode(t.res);
+  const bad = (msg, counts) => {
+    ci.classList.remove('bad','good'); void ci.offsetWidth; ci.classList.add('bad');
+    if (counts){
+      t.misses++; (t.wrong = t.wrong || []).push(raw.replace(/\s+/g, ' '));
+      if (t.misses >= 2){ reveal(msg); return; }
+    }
+    cmdFb(msg, 'err');
+  };
+  const reveal = msg => {
+    t.solved = true; markResult('R:' + t.res, false); logTask(t, 'missed');
+    call.adds.push(t.res); call.fresh = true;
+    renderGame();
+    cmdFb(`${msg} The answer: <span class="mono">${CMDMODE === 'code' ? '' : 'RES ' + esc(t.unit) + ' '}${esc(t.res)}</span> (${esc(res.name)}).`, 'err');
+    $('#nextBtn').focus();
+  };
+  if (!raw){ cmdFb(CMDMODE === 'code' ? 'Type a resource code first.' : 'Type a command first.', 'info'); return; }
+  const p = raw.split(/\s+/);
+  if (CMDMODE === 'code'){
+    if (p.length !== 1) return bad('Code only is on, so type just the resource code, like <span class="mono">TEN</span>.', true);
+    const rc = resByCode(p[0]);
+    if (!rc) return bad(`<span class="mono">${esc(p[0])}</span> isn't a resource code.`, true);
+    if (p[0] !== t.res) return bad(`<span class="mono">${esc(p[0])}</span> is ${esc(rc.name)}. That's not what ${esc(t.unit)} asked for.`, true);
+    return accept();
+  }
+  if (p.length !== 3) return bad('A request has three parts: <span class="mono">RES</span>, the unit or incident, and the resource code.', true);
+  let who, code;
+  if (p[0] === 'RES'){ who = p[1]; code = p[2]; }
+  else if (p[1] === 'RES'){ who = p[0]; code = p[2]; }
+  else return bad('Put <span class="mono">RES</span> first or second: <span class="mono">RES EN202 TEN</span> or <span class="mono">EN202 RES TEN</span>.', true);
+  if (who === 'RES') return bad('Name the unit or incident with <span class="mono">RES</span>.', true);
+  // who: incident or unit
+  const isInc = /^\d{3}$/.test(who) && G.queue.some(c => c.id === who);
+  const knownUnit = FIRE_UNITS.includes(who) || LAW_UNITS.includes(who);
+  if (!isInc && !knownUnit) return bad(`<span class="mono">${esc(who)}</span> isn't a unit or an open incident.`, true);
+  if (isInc && who !== call.id){ const c = G.queue.find(x => x.id === who); return bad(`Incident ${esc(who)} is the ${esc(callByCode(c.code)?.name || c.code)} call. The request came from ${esc(t.unit)}.`, true); }
+  if (!isInc && !call.units.includes(who)){
+    const on = G.queue.find(c => c.units.includes(who));
+    return bad(`<span class="mono">${esc(who)}</span> ${on ? `is on incident ${on.id}, not this call` : 'isn’t assigned to any open call'}. ${esc(t.unit)} made the request.`, true);
+  }
+  const r = resByCode(code);
+  if (!r) return bad(`<span class="mono">${esc(code)}</span> isn't a resource code.`, true);
+  if (code !== t.res) return bad(`<span class="mono">${esc(code)}</span> is ${esc(r.name)}. That's not what ${esc(t.unit)} asked for.`, true);
+  return accept();
+  function accept(){
+  t.solved = true; markResult('R:' + t.res, t.misses === 0); logTask(t, t.misses ? 'retry' : 'first');
+  call.adds.push(t.res); call.fresh = true;
+  renderGame();
+  ci.value = raw.replace(/\s+/g, ' '); ci.classList.add('good');
+  cmdFb(`${t.misses ? 'Got it' : 'Correct'}: added <span class="mono">${esc(t.res)}</span> (${esc(res.name)}) to incident ${call.id}.`, 'ok');
+  $('#nextBtn').focus();
+  }
+}
+
+
+/* ---------- admin portal (owner/editors inside Claude only) ---------- */
+const UNIT_TYPES = ['EN','TO','ME','BC','A','TE','BR','SM','IN','TR','WI','HM','BU','LAW'];
+const SKELETON_RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
+const HEAD_BITS = '<title>Code Change Trainer</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">\n';
+const STYLE_SRC = (document.getElementById('cct-style') || {}).textContent || '';
+const APP_SRC = (document.getElementById('cct-app') || {}).textContent || '';
+const STASH_KEY = 'cct-admin-stash-v1';
+let ART = null, CAN_EDIT = false;
+const A = { tab: 'calls', work: null, q: '', open: -1, msg: null, busy: false, stash: null, errs: {}, unlocked: false, lockErr: '' };
+/* Admin password check: compares a SHA-256 hash so the password itself isn't written in the page. */
+const ADMIN_HASH = 'afe3a2ef31a7460d5be873e870a95bf34bd9f3e65914f5df8c0e6b4845e949a4';
+const UNLOCK_KEY = 'cct-admin-unlocked-v1';
+try { A.unlocked = sessionStorage.getItem(UNLOCK_KEY) === ADMIN_HASH; } catch (e) {}
+async function sha256(s){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+function renderLock(){
+  G.view = 'admin-lock';
+  $('#app').innerHTML = `
+  <header class="bar wrap"><span class="brand">Code Change Trainer<small>Admin</small></span><span class="spacer"></span>${profileHtml()}<span class="clock">--:--:--</span></header>
+  <main class="admin wrap">
+    <form class="ad-lock" id="adLock" autocomplete="off">
+      <h1>Admin</h1>
+      <label class="f"><span class="lbl">Password</span><input class="inp" type="password" id="adPw" autocomplete="current-password"></label>
+      ${A.lockErr ? `<div class="fb err">${esc(A.lockErr)}</div>` : ''}
+      <div class="ad-eacts"><button class="btn primary" type="submit">Unlock</button><button class="linkbtn" type="button" data-act="home">Back to the games</button></div>
+    </form>
+  </main>`;
+  tick(); const pw = $('#adPw'); pw && pw.focus();
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'adLock') return;
+  e.preventDefault();
+  const v = ($('#adPw') || {}).value || '';
+  let h = '';
+  try { h = await sha256(v); } catch (x) { A.lockErr = 'This browser can’t check the password here.'; renderLock(); return; }
+  if (h === ADMIN_HASH){ A.unlocked = true; A.lockErr = ''; try { sessionStorage.setItem(UNLOCK_KEY, h); } catch (x) {} renderAdmin(); }
+  else { A.lockErr = 'That password isn’t right.'; renderLock(); }
+});
+const clone = o => JSON.parse(JSON.stringify(o));
+const liveData = () => ({ calls: CALLS, resources: RESOURCES });
+(async () => {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const [u, a] = await Promise.all([window.claude.use('user'), window.claude.use('artifact')]);
+    ART = a; CAN_EDIT = !!a && !!(u && await u.canEdit());
+    if (CAN_EDIT && G.view === 'home') renderLanding();
+  } catch (e) {}
+})();
+function buildPage(data){
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + SKELETON_RESET + '</style></head><body>'
+    + HEAD_BITS + '<style id="cct-style">' + STYLE_SRC + '</style>\n\n<div id="app"></div>\n\n'
+    + '<script type="application/json" id="cct-data">' + json + '</scr' + 'ipt>\n<script id="cct-app">' + APP_SRC + '</scr' + 'ipt>\n</body></html>';
+}
+const isDirty = () => JSON.stringify(A.work) !== JSON.stringify(liveData());
+function cleanWork(w){
+  return {
+    calls: w.calls.map(c => ({ code: String(c.code || '').trim().toUpperCase(), name: String(c.name || '').trim(),
+      old: String(c.old || '').toUpperCase().split(/[\s,]+/).filter(Boolean).join(', '), grp: c.grp || 'Added',
+      s: (c.s || []).map(x => String(x).trim()).filter(Boolean), units: (c.units || []).map(u => String(u).toUpperCase()).filter(Boolean) })),
+    resources: w.resources.map(r => ({ code: String(r.code || '').trim().toUpperCase(), name: String(r.name || '').trim(), req: r.req !== false }))
+  };
+}
+function validate(d){
+  const errs = {}, seen = {}, seenR = {};
+  d.calls.forEach((c, i) => {
+    const e = [];
+    if (!/^[A-Z0-9]+$/.test(c.code)) e.push('Code needs letters or numbers only');
+    else if (seen[c.code] != null) e.push('Code ' + c.code + ' is used twice'); else seen[c.code] = i;
+    if (!c.name) e.push('Name is missing');
+    if (!c.s.length) e.push('Add at least one scenario');
+    const badU = c.units.filter(u => !UNIT_TYPES.includes(u));
+    if (badU.length) e.push('Unknown unit type ' + badU.join(', '));
+    if (e.length) errs['c' + i] = e;
+  });
+  d.resources.forEach((r, i) => {
+    const e = [];
+    if (!/^[A-Z0-9]+$/.test(r.code)) e.push('Code needs letters or numbers only');
+    else if (seenR[r.code] != null) e.push('Code ' + r.code + ' is used twice'); else seenR[r.code] = i;
+    if (!r.name) e.push('Name is missing');
+    if (e.length) errs['r' + i] = e;
+  });
+  return errs;
+}
+function renderAdmin(){
+  if (!CAN_EDIT){ renderLanding(); return; }
+  if (!A.unlocked){ renderLock(); return; }
+  G.view = 'admin';
+  if (!A.work){
+    A.work = clone(liveData());
+    try {
+      const s = JSON.parse(sessionStorage.getItem(STASH_KEY) || 'null');
+      if (s && JSON.stringify(cleanWork(s)) !== JSON.stringify(cleanWork(liveData()))) A.stash = s; else sessionStorage.removeItem(STASH_KEY);
+    } catch (e) {}
+  }
+  $('#app').innerHTML = `
+  <header class="bar wrap"><span class="brand">Code Change Trainer<small>Admin</small></span><span class="spacer"></span>${profileHtml()}<span class="clock">--:--:--</span></header>
+  <main class="admin wrap">
+    <div class="ad-head">
+      <div><h1>Admin</h1><p class="ad-sub">Edit the lists and scenarios, then publish. Everyone gets the new version the next time the game loads.</p></div>
+      <div class="ad-acts"><button class="btn" data-ad="discard" id="adDiscard">Discard changes</button><button class="btn primary" data-ad="publish" id="adPublish">Publish changes</button></div>
+    </div>
+    <div id="adMsg"></div>
+    <div class="ad-tools">
+      <div class="seg" role="group" aria-label="List"><button data-ad="tab" data-tab="calls" aria-pressed="${A.tab==='calls'}">Call types (<span id="adNc">${A.work.calls.length}</span>)</button><button data-ad="tab" data-tab="res" aria-pressed="${A.tab==='res'}">Resource types (<span id="adNr">${A.work.resources.length}</span>)</button></div>
+      <input class="inp ad-q" id="adQ" placeholder="Filter by code or name" value="${esc(A.q)}" autocomplete="off" spellcheck="false" aria-label="Filter">
+      <button class="btn" data-ad="${A.tab === 'calls' ? 'addcall' : 'addres'}">${A.tab === 'calls' ? 'Add call type' : 'Add resource type'}</button>
+    </div>
+    <div id="adList"></div>
+    <div class="foot"><button class="linkbtn" data-act="home">Back to the games</button></div>
+  </main>`;
+  drawAdminList(); drawAdminMsg(); syncAdminButtons(); tick();
+}
+function drawAdminMsg(){
+  const el = $('#adMsg'); if (!el) return;
+  let h = '';
+  if (A.stash) h += `<div class="fb info ad-stash">You have edits that weren't published before the page reloaded. <button class="btn small" data-ad="restore">Restore them</button> <button class="linkbtn" data-ad="dropstash">Throw them away</button></div>`;
+  if (A.msg) h += `<div class="fb ${A.msg.cls}">${A.msg.html}</div>`;
+  el.innerHTML = h;
+}
+function syncAdminButtons(){
+  const d = isDirty(), pb = $('#adPublish'), db = $('#adDiscard');
+  if (pb){ pb.disabled = !d || A.busy; pb.textContent = A.busy ? 'Publishing…' : 'Publish changes'; }
+  if (db) db.disabled = !d || A.busy;
+  const nc = $('#adNc'), nr = $('#adNr');
+  if (nc) nc.textContent = A.work.calls.length; if (nr) nr.textContent = A.work.resources.length;
+}
+const matchQ = (...xs) => { const q = A.q.trim().toUpperCase(); return !q || xs.some(x => String(x || '').toUpperCase().includes(q)); };
+function drawAdminList(){
+  const el = $('#adList'); if (!el) return;
+  if (A.tab === 'calls'){
+    const rows = A.work.calls.map((c, i) => ({ c, i })).filter(({ c, i }) => i === A.open || matchQ(c.code, c.name, c.old));
+    el.innerHTML = rows.length ? `<div class="ad-list">${rows.map(({ c, i }) => i === A.open ? callEditor(c, i) : `
+      <button class="ad-row${A.errs['c' + i] ? ' has-err' : ''}" data-ad="open" data-i="${i}">
+        <b class="mono">${esc(c.code) || '<i>new</i>'}</b><span class="nm">${esc(c.name) || '<i>No name yet</i>'}</span>
+        <span class="old mono">was ${esc(c.old) || '–'}</span><span class="cnt">${(c.s || []).filter(x => String(x).trim()).length} scenarios</span>
+        ${A.errs['c' + i] ? `<span class="err">${esc(A.errs['c' + i][0])}</span>` : ''}
+      </button>`).join('')}</div>` : '<div class="qempty">No call types match.</div>';
+  } else {
+    const rows = A.work.resources.map((r, i) => ({ r, i })).filter(({ r }) => matchQ(r.code, r.name));
+    el.innerHTML = rows.length ? `<div class="ad-tablewrap"><table class="ad-table"><thead><tr><th>Code</th><th>Name</th><th>Used in radio requests</th><th></th></tr></thead><tbody>${rows.map(({ r, i }) => `
+      <tr class="${A.errs['r' + i] ? 'has-err' : ''}">
+        <td><input class="inp mono" data-rf="code" data-i="${i}" value="${esc(r.code)}" aria-label="Resource code" spellcheck="false" autocapitalize="characters"></td>
+        <td><input class="inp" data-rf="name" data-i="${i}" value="${esc(r.name)}" aria-label="Resource name"></td>
+        <td><label class="ad-check"><input type="checkbox" data-rf="req" data-i="${i}" ${r.req !== false ? 'checked' : ''}> Yes</label></td>
+        <td><button class="linkbtn danger" data-ad="delres" data-i="${i}">Delete</button>${A.errs['r' + i] ? `<div class="err">${esc(A.errs['r' + i].join('. '))}</div>` : ''}</td>
+      </tr>`).join('')}</tbody></table></div>` : '<div class="qempty">No resource types match.</div>';
+  }
+}
+function callEditor(c, i){
+  const errs = A.errs['c' + i];
+  return `<section class="ad-edit" id="adEdit">
+    <div class="ad-grid">
+      <label class="f"><span class="lbl">New code</span><input class="inp mono" data-cf="code" data-i="${i}" value="${esc(c.code)}" spellcheck="false" autocapitalize="characters"></label>
+      <label class="f"><span class="lbl">Name</span><input class="inp" data-cf="name" data-i="${i}" value="${esc(c.name)}"></label>
+      <label class="f"><span class="lbl">Old code(s)</span><input class="inp mono" data-cf="old" data-i="${i}" value="${esc(c.old)}" placeholder="FIASSR, FINONR" spellcheck="false"></label>
+      <label class="f"><span class="lbl">Units sent to the call</span><input class="inp mono" data-cf="units" data-i="${i}" value="${esc((c.units || []).join(' '))}" placeholder="EN ME BC" spellcheck="false"></label>
+    </div>
+    <p class="ad-hint">Unit types: ${UNIT_TYPES.map(u => `<span class="mono">${u}</span>`).join(' ')}. List a type twice to send two (EN EN). LAW sends a deputy.</p>
+    <div class="ad-scen">
+      <span class="lbl">Scenarios</span>
+      ${(c.s || []).map((s, si) => `<div class="ad-srow"><textarea class="inp" rows="2" data-cf="s" data-i="${i}" data-si="${si}" aria-label="Scenario ${si + 1}">${esc(s)}</textarea><button class="linkbtn danger" data-ad="dels" data-i="${i}" data-si="${si}">Remove</button></div>`).join('')}
+      <button class="btn small" data-ad="adds" data-i="${i}">Add scenario</button>
+    </div>
+    ${errs ? `<div class="fb err">${esc(errs.join('. '))}.</div>` : ''}
+    <div class="ad-eacts"><button class="btn primary" data-ad="done">Done</button><button class="linkbtn danger" data-ad="delcall" data-i="${i}">Delete this call type</button></div>
+  </section>`;
+}
+async function adminPublish(){
+  if (A.busy || !isDirty()) return;
+  const clean = cleanWork(A.work);
+  A.errs = validate(clean);
+  if (Object.keys(A.errs).length){
+    const first = Object.keys(A.errs)[0];
+    A.tab = first[0] === 'c' ? 'calls' : 'res'; A.open = first[0] === 'c' ? +first.slice(1) : -1; A.q = '';
+    A.msg = { cls: 'err', html: `Fix ${Object.keys(A.errs).length === 1 ? 'the item' : 'the ' + Object.keys(A.errs).length + ' items'} marked below, then publish again.` };
+    renderAdmin(); return;
+  }
+  A.busy = true; A.msg = { cls: 'info', html: 'Publishing. The game reloads when it is done.' }; drawAdminMsg(); syncAdminButtons();
+  try { sessionStorage.setItem(STASH_KEY, JSON.stringify(A.work)); } catch (e) {}
+  try {
+    await ART.publish(buildPage(clean));
+  } catch (e) {
+    A.busy = false;
+    const code = e && e.code;
+    const m = {
+      conflict: 'Someone published a newer version first. The page is reloading to it. Your edits are kept, and you can restore them after it loads.',
+      not_writer: 'This view is read-only, so the changes were not saved. Open the game in Claude as its owner or an editor.',
+      not_granted: 'This view is read-only, so the changes were not saved. Open the game in Claude as its owner or an editor.',
+      capability_disabled: 'Saving isn’t available in this view. Open the game in Claude as its owner or an editor.',
+      too_large: 'The game is too large to save. Remove some scenarios and try again.',
+      rate_limited: 'Too many saves in a short time. Wait a minute, then publish again.'
+    }[code] || 'The changes could not be published. Try again in a moment.';
+    A.msg = { cls: 'err', html: esc(m) };
+    if (code !== 'conflict'){ try { sessionStorage.removeItem(STASH_KEY); } catch (x) {} }
+    drawAdminMsg(); syncAdminButtons();
+  }
+}
+document.addEventListener('input', e => {
+  if (G.view !== 'admin') return;
+  const el = e.target;
+  if (el.id === 'adQ'){ A.q = el.value; drawAdminList(); return; }
+  if (el.dataset.cf){
+    const c = A.work.calls[+el.dataset.i], f = el.dataset.cf;
+    if (f === 's') c.s[+el.dataset.si] = el.value;
+    else if (f === 'units') c.units = el.value.toUpperCase().split(/[\s,]+/).filter(Boolean);
+    else c[f] = el.value;
+  } else if (el.dataset.rf && el.dataset.rf !== 'req'){
+    A.work.resources[+el.dataset.i][el.dataset.rf] = el.value;
+  }
+  syncAdminButtons();
+});
+document.addEventListener('change', e => {
+  if (G.view !== 'admin' || e.target.dataset.rf !== 'req') return;
+  A.work.resources[+e.target.dataset.i].req = e.target.checked; syncAdminButtons();
+});
+document.addEventListener('click', e => {
+  if (G.view !== 'admin') return;
+  const b = e.target.closest('[data-ad]'); if (!b) return;
+  const k = b.dataset.ad, i = +b.dataset.i;
+  if (k === 'tab'){ A.tab = b.dataset.tab; A.open = -1; A.q = ''; renderAdmin(); }
+  else if (k === 'open'){ A.open = i; drawAdminList(); const ed = $('#adEdit'); if (ed){ ed.scrollIntoView({ block: 'nearest' }); const f = ed.querySelector('input'); f && f.focus(); } }
+  else if (k === 'done'){ A.open = -1; drawAdminList(); }
+  else if (k === 'adds'){ A.work.calls[i].s.push(''); drawAdminList(); const ts = $('#adEdit').querySelectorAll('textarea'); ts.length && ts[ts.length - 1].focus(); syncAdminButtons(); }
+  else if (k === 'dels'){ A.work.calls[i].s.splice(+b.dataset.si, 1); drawAdminList(); syncAdminButtons(); }
+  else if (k === 'addcall'){ A.work.calls.unshift({ code: '', name: '', old: '', grp: 'Added', s: [''], units: ['EN'] }); A.open = 0; A.q = ''; A.errs = {}; renderAdmin(); const f = $('#adEdit input'); f && f.focus(); }
+  else if (k === 'addres'){ A.work.resources.unshift({ code: '', name: '', req: true }); A.q = ''; A.errs = {}; renderAdmin(); const f = $('#adList input'); f && f.focus(); }
+  else if (k === 'delcall' || k === 'delres'){
+    if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = 'Click again to delete'; setTimeout(() => { if (b.isConnected && b.dataset.armed === '1'){ b.dataset.armed = ''; b.textContent = k === 'delcall' ? 'Delete this call type' : 'Delete'; } }, 3000); return; }
+    if (k === 'delcall'){ A.work.calls.splice(i, 1); A.open = -1; } else A.work.resources.splice(i, 1);
+    A.errs = {}; renderAdmin();
+  }
+  else if (k === 'discard'){
+    if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = 'Click again to discard'; setTimeout(() => { if (b.isConnected && b.dataset.armed === '1'){ b.dataset.armed = ''; b.textContent = 'Discard changes'; } }, 3000); return; }
+    A.work = clone(liveData()); A.open = -1; A.errs = {}; A.msg = null; renderAdmin();
+  }
+  else if (k === 'restore'){ A.work = A.stash; A.stash = null; A.msg = { cls: 'info', html: 'Your earlier edits are back. Publish when ready.' }; renderAdmin(); }
+  else if (k === 'dropstash'){ A.stash = null; try { sessionStorage.removeItem(STASH_KEY); } catch (x) {} drawAdminMsg(); }
+  else if (k === 'publish') adminPublish();
+});
+
+/* ---------- start, clicks, clock ---------- */
+function start(mode){
+  G.mode = mode; G.queue = []; G.round = 0; G.last = null; G.recent = []; ST.streak = 0; G.log = []; G.started = Date.now();
+  seedQueue(mode === 'call' ? 3 : 4, mode !== 'call');
+  shell(); nextTask();
+}
+document.addEventListener('click', e => {
+  const m = e.target.closest('[data-mode]');
+  if (m){ m.dataset.mode === 'flash' ? renderFlash() : start(m.dataset.mode); return; }
+  const fd = e.target.closest('[data-fdeck],[data-fdir],[data-finput]');
+  if (fd){ if (fd.dataset.fdeck) F.deck = fd.dataset.fdeck; if (fd.dataset.fdir) F.dir = fd.dataset.fdir; if (fd.dataset.finput) F.input = fd.dataset.finput; saveF(); renderFlash(); return; }
+  const fa = e.target.closest('[data-fact]');
+  if (fa){
+    const k = fa.dataset.fact;
+    if (k === 'flip'){ F.flipped = true; drawFlash(); const g = document.querySelector('[data-fact="got"]'); g && g.focus(); }
+    else if (k === 'got' || k === 'miss'){ grade(k === 'got'); nextCard(); }
+    else if (k === 'next') nextCard();
+    else if (k === 'reset'){
+      if (fa.dataset.armed === '1'){ deckCards(F.deck).forEach(c => delete FBOX[c.key]); saveF(); drawFlash(); }
+      else { fa.dataset.armed = '1'; fa.textContent = 'Click again to reset'; setTimeout(() => { if (fa.isConnected && fa.dataset.armed === '1'){ fa.dataset.armed = ''; fa.textContent = 'Reset this deck'; } }, 3000); }
+    }
+    return;
+  }
+  const cm = e.target.closest('[data-cmdmode]');
+  if (cm){ setCmdMode(cm.dataset.cmdmode); return; }
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act;
+  if (act === 'next'){
+    const t = G.task;
+    if (t && !t.solved){ ST.streak = 0; renderStats(); logTask(t, 'skipped'); }
+    nextTask();
+  }
+  else if (act === 'end'){
+    const t = G.task;
+    if (t && !t.solved && t.wrong && t.wrong.length) logTask(t, 'skipped');
+    renderReport();
+  }
+  else if (act === 'again') start(G.mode);
+  else if (act === 'create') createCall();
+  else if (act === 'cheat'){
+    G.cheat = !G.cheat;
+    $('#cheat').hidden = !G.cheat;
+    a.setAttribute('aria-expanded', String(G.cheat));
+  }
+  else if (act === 'home') renderLanding();
+  else if (act === 'admin') renderAdmin();
+  else if (act === 'reset'){
+    if (a.dataset.armed === '1'){ ST.correct = 0; ST.attempts = 0; ST.best = 0; ST.streak = 0; ST.w = {}; saveStats(); renderStats(); a.textContent = 'Score reset'; a.dataset.armed = ''; setTimeout(() => { if (a.isConnected) a.textContent = 'Reset my score'; }, 2000); }
+    else { a.dataset.armed = '1'; a.textContent = 'Click again to reset'; setTimeout(() => { if (a.isConnected && a.dataset.armed === '1'){ a.dataset.armed = ''; a.textContent = 'Reset my score'; } }, 3000); }
+  }
+});
+function tick(){ const s = hms(new Date()); document.querySelectorAll('.clock').forEach(el => el.textContent = s); }
+setInterval(tick, 1000);
+renderLanding();
+</script>
+</body></html>
